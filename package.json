@@ -1,0 +1,86 @@
+{
+  "name": "stockai",
+  "version": "2.0.0",
+  "description": "StockAI - AI stock analysis desktop assistant",
+  "main": "main.js",
+  "author": "StockAI Contributors",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
+    "dist": "npm run dist:arm64 && npm run dist:x64",
+    "dist:arm64": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
+    "dist:x64": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --x64",
+    "check": "node --check main.js && node --check app.js && node --check preload.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "chrome-remote-interface": "^0.33.0"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.stockai.desktop",
+    "productName": "StockAI",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "app.js",
+      "ui.html",
+      "package.json",
+      "README.md",
+      "DISCLAIMER.md",
+      "PRIVACY.md",
+      "SECURITY.md",
+      "LICENSE"
+    ],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "identity": null
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "protocols": [
+      {
+        "name": "StockAI",
+        "schemes": [
+          "stockai"
+        ]
+      }
+    ]
+  }
+}
