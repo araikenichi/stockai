@@ -42,10 +42,11 @@ ipcMain.handle('capture',async(_,o)=>{try{return{ok:true,img:await captureScreen
 // Encrypted API key storage. Keys are kept per user's local machine.
 function readKeyStore(){try{return JSON.parse(fs.readFileSync(KEY_FILE,'utf8'));}catch(e){return{};}}
 function writeKeyStore(data){ensureDir();fs.writeFileSync(KEY_FILE,JSON.stringify(data,null,2));}
-function encSecret(v){if(!v)return'';try{return safeStorage.encryptString(v).toString('base64');}catch(e){return Buffer.from(v,'utf8').toString('base64');}}
+function encSecret(v){if(!v)return'';try{return safeStorage.encryptString(v).toString('base64');}catch(e){throw new Error('安全なAPIキー保存に失敗しました');}}
 function decSecret(v){if(!v)return'';try{return safeStorage.decryptString(Buffer.from(v,'base64'));}catch(e){try{return Buffer.from(v,'base64').toString('utf8');}catch(_){return'';}}}
 ipcMain.handle('save-api-key',(_,{provider,key,model})=>{try{const s=readKeyStore();s[provider]={key:encSecret(key||''),model:model||s[provider]?.model||''};writeKeyStore(s);return{ok:true};}catch(e){return{error:e.message};}});
-ipcMain.handle('load-api-keys',()=>{try{const s=readKeyStore();const out={};['gemini','claude','openai'].forEach(p=>{out[p]={key:decSecret(s[p]?.key),model:s[p]?.model||''};});return{ok:true,keys:out};}catch(e){return{ok:true,keys:{}};}});
+ipcMain.handle('load-api-keys',()=>{try{const s=readKeyStore();const out={};['gemini','claude','openai','deepseek'].forEach(p=>{out[p]={key:decSecret(s[p]?.key),model:s[p]?.model||''};});return{ok:true,keys:out};}catch(e){return{ok:true,keys:{}};}});
+ipcMain.handle('delete-api-key',(_,{provider})=>{try{const s=readKeyStore();delete s[provider];writeKeyStore(s);return{ok:true};}catch(e){return{error:e.message};}});
 ipcMain.handle('export-report',(_,{title,content})=>{try{ensureDir();const safeName=String(title||'stockai-report').replace(/[^a-z0-9._-]+/gi,'_').slice(0,80)||'stockai-report';const file=path.join(app.getPath('downloads'),`${safeName}-${new Date().toISOString().replace(/[:.]/g,'-')}.md`);fs.writeFileSync(file,String(content||''));return{ok:true,file};}catch(e){return{error:e.message};}});
 
 // ═══ Market Data with retry + fallback + specific errors ═══
@@ -58,6 +59,12 @@ async function fetchR(url,opts,retries=2){
   return null;
 }
 
+const FOMC_2026=['2026-01-28','2026-03-18','2026-04-29','2026-06-10','2026-07-29','2026-09-16','2026-10-28','2026-12-09'];
+const CPI_2026=['2026-01-14','2026-02-11','2026-03-12','2026-04-10','2026-05-13','2026-06-11','2026-07-15','2026-08-12','2026-09-10','2026-10-09','2026-11-12','2026-12-10'];
+function getUpcomingMacroEvents(days=14){const now=Date.now();const evts=[];[...FOMC_2026.map(d=>({date:d,label:'FOMC'})),...CPI_2026.map(d=>({date:d,label:'CPI'}))].forEach(e=>{const d=Math.round((new Date(e.date).getTime()-now)/86400000);if(d>=0&&d<=days)evts.push({...e,daysUntil:d});});return evts.sort((a,b)=>a.daysUntil-b.daysUntil);}
+
+async function fetchMacro(){const macro={};await Promise.all([['DX-Y.NYB','dxy'],['%5ETNX','t10y'],['GC%3DF','gold'],['CL%3DF','oil']].map(async([sym,k])=>{try{const r=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`,{headers:UA});const m=r?.chart?.result?.[0]?.meta;if(m)macro[k]={price:m.regularMarketPrice,change:m.regularMarketPrice&&m.chartPreviousClose?((m.regularMarketPrice-m.chartPreviousClose)/m.chartPreviousClose*100).toFixed(2):null};}catch(e){}}));return macro;}
+
 ipcMain.handle('market-data',async(_,{symbol})=>{
   const data={};
   try{const yf=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=3mo`,{headers:UA});const meta=yf?.chart?.result?.[0]?.meta;const q=yf?.chart?.result?.[0]?.indicators?.quote?.[0];const ts=yf?.chart?.result?.[0]?.timestamp;if(meta){data.price=meta.regularMarketPrice;data.prevClose=meta.chartPreviousClose;data.change=(meta.regularMarketPrice&&meta.chartPreviousClose)?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null;data.week52High=meta.fiftyTwoWeekHigh;data.week52Low=meta.fiftyTwoWeekLow;data.exchange=meta.exchangeName;}if(q&&ts)data.ohlcv=ts.map((t,i)=>({d:new Date(t*1000).toISOString().slice(0,10),o:q.open[i],h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume[i]})).filter(d=>d.c!=null).slice(-60);}catch(e){}
@@ -67,38 +74,89 @@ ipcMain.handle('market-data',async(_,{symbol})=>{
   try{const fg=await fetchR('https://production.dataviz.cnn.io/index/fearandgreed/graphdata',{headers:{...UA,'Referer':'https://www.cnn.com/'}});data.fearGreed={score:Math.round(fg?.fear_and_greed?.score||0),rating:fg?.fear_and_greed?.rating||''};}catch(e){}
   try{const vf=await fetchR('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d',{headers:UA});data.vix=vf?.chart?.result?.[0]?.meta?.regularMarketPrice;}catch(e){}
   try{const sp=await fetchR('https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=5d',{headers:UA});const m=sp?.chart?.result?.[0]?.meta;if(m)data.sp500Change=(m.regularMarketPrice&&m.chartPreviousClose)?((m.regularMarketPrice-m.chartPreviousClose)/m.chartPreviousClose*100).toFixed(2):null;}catch(e){}
+  try{data.macro=await fetchMacro();}catch(e){}
+  const [earR,insR,nwR]=await Promise.allSettled([
+    fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=calendarEvents`,{headers:UA}),
+    fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=insiderTransactions`,{headers:UA}),
+    fetchR(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=15&quotesCount=0`,{headers:UA})
+  ]);
+  if(earR.status==='fulfilled'){const ts=earR.value?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate?.[0]?.raw;if(ts){const d=Math.round((ts*1000-Date.now())/86400000);if(d>=0&&d<=90)data.earningsDays=d;data.earningsDate=new Date(ts*1000).toISOString().slice(0,10);}}
+  if(insR.status==='fulfilled'){const txns=insR.value?.quoteSummary?.result?.[0]?.insiderTransactions?.transactions;if(txns?.length)data.insiderTransactions=txns.slice(0,5).map(t=>({name:(t.filerName||'—').slice(0,20),relation:(t.filerRelation||'').replace('Chief Executive Officer','CEO').replace('Chief Financial Officer','CFO').replace('Chief Operating Officer','COO').replace('Chief Technology Officer','CTO'),shares:t.shares?.raw||0,value:t.value?.raw||0,date:t.startDate?.fmt||'',type:t.transactionText||''}));}
+  if(nwR.status==='fulfilled'){const hl=(nwR.value?.news||[]).map(n=>n.title||'').filter(Boolean);if(hl.length){const pos=['beat','surge','rally','upgrade','strong','growth','record','profit','bullish','gain','rise','soar','jump','exceed','above','better','improve','breakthrough','partnership','deal'];const neg=['miss','drop','fall','downgrade','weak','loss','decline','bearish','cut','crash','warning','below','worse','concern','risk','trouble','layoff','lawsuit','recall','fraud','investigation'];let p=0,n2=0;hl.forEach(h=>{const l=h.toLowerCase();pos.forEach(w=>{if(l.includes(w))p++;});neg.forEach(w=>{if(l.includes(w))n2++;});});const tot=p+n2||1;data.newsSentiment={score:Math.round(p/tot*100),positive:p,negative:n2,total:hl.length};}}
+  data.upcomingEvents=getUpcomingMacroEvents(14);
   if(!data.price)return{error:'データ取得失敗: '+symbol+' — ティッカーを確認してください'};
   return{ok:true,data};
 });
 
-function calcTech(ohlcv){const closes=ohlcv.map(d=>d.c),n=closes.length,last=closes[n-1];if(n<5)return null;const sma=p=>{const s=closes.slice(-Math.min(p,n));return s.reduce((a,b)=>a+b,0)/s.length;};const ema=p=>{const k=2/(p+1);let e=closes[0];for(let i=1;i<n;i++)e=closes[i]*k+e*(1-k);return e;};const sma20=sma(20),sma50=sma(50),sma200=sma(200);const ema12=ema(12),ema26=ema(26),macd=ema12-ema26;let g=0,l=0;for(let i=Math.max(1,n-14);i<n;i++){const d=closes[i]-closes[i-1];if(d>0)g+=d;else l-=d;}const rsi=l===0?100:100-100/(1+(g/l));const std=Math.sqrt(closes.slice(-Math.min(20,n)).reduce((a,c)=>a+Math.pow(c-sma20,2),0)/Math.min(20,n));const bbU=sma20+2*std,bbL=sma20-2*std;const rec20=ohlcv.slice(-20);const resist=Math.max(...rec20.map(d=>d.h)),supp=Math.min(...rec20.map(d=>d.l));const vols=ohlcv.slice(-20).map(d=>d.v).filter(v=>v>0);const avgVol=vols.length?vols.reduce((a,b)=>a+b,0)/vols.length:0;const volRatio=ohlcv[n-1]?.v&&avgVol?(ohlcv[n-1].v/avgVol).toFixed(2):'—';let atrSum=0;for(let i=Math.max(1,n-14);i<n;i++){const p=ohlcv[i-1],c=ohlcv[i];atrSum+=Math.max(c.h-c.l,Math.abs(c.h-p.c),Math.abs(c.l-p.c));}const atr=(atrSum/Math.min(14,n-1)).toFixed(2);const trend=last>sma20&&sma20>sma50?'上昇📈':last<sma20&&sma20<sma50?'下降📉':'レンジ↔';const rsiSig=rsi<30?'売られ過ぎ🟢':rsi>70?'買われ過ぎ🔴':'中立';const macdSig=macd>0?'強気':'弱気';const bbPct=bbU!==bbL?((last-bbL)/(bbU-bbL)*100).toFixed(0):'50';return{sma20:sma20.toFixed(2),sma50:sma50.toFixed(2),sma200:sma200.toFixed(2),macd:macd.toFixed(3),macdSig,rsi:rsi.toFixed(1),rsiSig,bbUpper:bbU.toFixed(2),bbMid:sma20.toFixed(2),bbLower:bbL.toFixed(2),bbPct,atr,trend,support:supp.toFixed(2),resistance:resist.toFixed(2),volRatio};}
+function calcTech(ohlcv){const closes=ohlcv.map(d=>d.c),n=closes.length,last=closes[n-1];if(n<5)return null;const sma=p=>{const s=closes.slice(-Math.min(p,n));return s.reduce((a,b)=>a+b,0)/s.length;};const ema=p=>{const k=2/(p+1);let e=closes[0];for(let i=1;i<n;i++)e=closes[i]*k+e*(1-k);return e;};const sma20=sma(20),sma50=sma(50),sma200=sma(200);const ema12=ema(12),ema26=ema(26),macd=ema12-ema26;let g=0,l=0;for(let i=Math.max(1,n-14);i<n;i++){const d=closes[i]-closes[i-1];if(d>0)g+=d;else l-=d;}const rsi=l===0?100:100-100/(1+(g/l));const std=Math.sqrt(closes.slice(-Math.min(20,n)).reduce((a,c)=>a+Math.pow(c-sma20,2),0)/Math.min(20,n));const bbU=sma20+2*std,bbL=sma20-2*std;const rec20=ohlcv.slice(-20);const resist=Math.max(...rec20.map(d=>d.h)),supp=Math.min(...rec20.map(d=>d.l));const vols=ohlcv.slice(-20).map(d=>d.v).filter(v=>v>0);const avgVol=vols.length?vols.reduce((a,b)=>a+b,0)/vols.length:0;const volRatio=ohlcv[n-1]?.v&&avgVol?(ohlcv[n-1].v/avgVol).toFixed(2):'—';let atrSum=0;for(let i=Math.max(1,n-14);i<n;i++){const p=ohlcv[i-1],c=ohlcv[i];atrSum+=Math.max(c.h-c.l,Math.abs(c.h-p.c),Math.abs(c.l-p.c));}const atr=(atrSum/Math.min(14,n-1)).toFixed(2);const trend=last>sma20&&sma20>sma50?'上昇📈':last<sma20&&sma20<sma50?'下降📉':'レンジ↔';const rsiSig=rsi<30?'売られ過ぎ🟢':rsi>70?'買われ過ぎ🔴':'中立';const macdSig=macd>0?'強気':'弱気';const bbPct=bbU!==bbL?((last-bbL)/(bbU-bbL)*100).toFixed(0):'50';
+  // EMA cross (9 vs 21) – golden / dead cross signal
+  const ema9=ema(9),ema21=ema(21);
+  const emaCross=ema9>ema21?'ゴールデン📈':'デッド📉';
+  // Stochastic %K (14-period)
+  const stOHLCV=ohlcv.slice(-Math.min(14,n));
+  const stHH=Math.max(...stOHLCV.map(d=>d.h||d.c));
+  const stLL=Math.min(...stOHLCV.map(d=>d.l||d.c));
+  const stochK=stHH!==stLL?((last-stLL)/(stHH-stLL)*100).toFixed(1):'50';
+  const stochSig=parseFloat(stochK)<20?'売られ過ぎ🟢':parseFloat(stochK)>80?'買われ過ぎ🔴':'中立';
+  // OBV direction (6-bar trend)
+  let obvAcc=0;for(let i=1;i<n;i++){if(closes[i]>closes[i-1])obvAcc+=(ohlcv[i].v||0);else if(closes[i]<closes[i-1])obvAcc-=(ohlcv[i].v||0);}
+  const recentOBVDelta=ohlcv.slice(-Math.min(6,n)).reduce((acc,d,i,arr)=>{if(i===0)return 0;if(d.c>(arr[i-1].c||0))return acc+(d.v||0);if(d.c<(arr[i-1].c||0))return acc-(d.v||0);return acc;},0);
+  const obvDir=recentOBVDelta>0?'上昇📈':recentOBVDelta<0?'下降📉':'横ばい';
+  // Pivot points (previous session)
+  const prevD=n>=2?ohlcv[n-2]:ohlcv[n-1];
+  const pivot=prevD?((prevD.h+prevD.l+prevD.c)/3).toFixed(2):null;
+  const r1=prevD&&pivot?(2*parseFloat(pivot)-prevD.l).toFixed(2):null;
+  const s1=prevD&&pivot?(2*parseFloat(pivot)-prevD.h).toFixed(2):null;
+  return{sma20:sma20.toFixed(2),sma50:sma50.toFixed(2),sma200:sma200.toFixed(2),ema9:ema9.toFixed(2),ema21:ema21.toFixed(2),emaCross,macd:macd.toFixed(3),macdSig,rsi:rsi.toFixed(1),rsiSig,stochK,stochSig,bbUpper:bbU.toFixed(2),bbMid:sma20.toFixed(2),bbLower:bbL.toFixed(2),bbPct,atr,trend,support:supp.toFixed(2),resistance:resist.toFixed(2),volRatio,obvDir,pivot,r1,s1};}
 
 // ═══ AI ═══
+function inferAIType(key,model){
+  if(String(model||'').startsWith('deepseek'))return'deepseek';
+  if(String(key||'').startsWith('AIza'))return'gemini';
+  if(String(key||'').startsWith('sk-ant'))return'claude';
+  return'openai';
+}
+function textOnlyMessages(messages){
+  return messages.map(m=>({
+    role:m.role,
+    content:Array.isArray(m.content)
+      ?m.content.map(c=>c.type==='image'?'[Screenshot attached, but this provider does not support image input in StockAI yet.]':(c.text||'')).join('\n')
+      :String(m.content||'')
+  }));
+}
 async function callAI(type,key,model,messages,search=false){
   if(type==='gemini'){let sys='';const msgs=[...messages];if(msgs[0]?.role==='system'){sys=msgs.shift().content;}const contents=msgs.map(m=>{const parts=[];if(Array.isArray(m.content))m.content.forEach(c=>{if(c.type==='text')parts.push({text:c.text});else if(c.type==='image')parts.push({inline_data:{mime_type:c.source.media_type,data:c.source.data}});});else parts.push({text:String(m.content||'')});return{role:m.role==='assistant'?'model':'user',parts};});const body={contents,generationConfig:{maxOutputTokens:4000}};if(sys)body.systemInstruction={parts:[{text:sys}]};if(search)body.tools=[{google_search:{}}];body.safetySettings=[{category:'HARM_CATEGORY_HARASSMENT',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_HATE_SPEECH',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_DANGEROUS_CONTENT',threshold:'BLOCK_NONE'}];const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){const e=await r.json().catch(()=>({}));const msg=e.error?.message||'';if(r.status===400&&msg.includes('API_KEY'))throw new Error('Gemini APIキーが無効です。キーを確認してください');if(r.status===429)throw new Error('Gemini レート制限。しばらく待ってください');throw new Error('Gemini: '+msg||r.status);}const d=await r.json();if(d.promptFeedback?.blockReason)throw new Error('Gemini: コンテンツがブロックされました');return d.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim()||'';}
   if(type==='claude'){let sys='';const msgs=[...messages];if(msgs[0]?.role==='system'){sys=msgs.shift().content;}const body={model:model||'claude-sonnet-4-20250514',max_tokens:4000,messages:msgs};if(sys)body.system=sys;if(search)body.tools=[{type:'web_search_20250305',name:'web_search'}];let cur=[...msgs];for(let i=0;i<8;i++){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},body:JSON.stringify({...body,messages:cur})});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401)throw new Error('Claude APIキーが無効です');if(r.status===429)throw new Error('Claude レート制限');throw new Error('Claude: '+(e.error?.message||r.status));}const d=await r.json();if(d.stop_reason==='tool_use'){cur.push({role:'assistant',content:d.content});cur.push({role:'user',content:d.content.filter(b=>b.type==='tool_use').map(b=>({type:'tool_result',tool_use_id:b.id,content:[{type:'text',text:'done'}]}))});}else return d.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');}throw new Error('Claude: 最大ループ回数超過');}
   if(type==='openai'){const msgs=messages.map(m=>({role:m.role,content:Array.isArray(m.content)?m.content.map(c=>c.type==='image'?{type:'image_url',image_url:{url:`data:${c.source.media_type};base64,${c.source.data}`}}:{type:'text',text:c.text||''}):m.content}));const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||'gpt-4o',messages:msgs,max_tokens:3000})});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401)throw new Error('OpenAI APIキーが無効です');if(r.status===429)throw new Error('OpenAI レート制限');throw new Error('OpenAI: '+(e.error?.message||r.status));}return(await r.json()).choices[0].message.content;}
+  if(type==='deepseek'){const r=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||'deepseek-chat',messages:textOnlyMessages(messages),max_tokens:3000})});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401)throw new Error('DeepSeek APIキーが無効です');if(r.status===429)throw new Error('DeepSeek レート制限');throw new Error('DeepSeek: '+(e.error?.message||r.status));}return(await r.json()).choices?.[0]?.message?.content||'';}
   throw new Error('不明なAIタイプ: '+type);
 }
 
 // ═══ Build context helper ═══
-function buildCtx(symbol,marketData,tvState,portfolio,userInstruction){
+function buildCtx(symbol,marketData,tvState,portfolio,userInstruction,symbolHistory){
   const md=marketData||{},tech=md.tech||{};
-  const dataCtx=md.price?`[${symbol}] $${safe(md.price)} ${md.change||'—'}% RSI:${tech.rsi||'—'}(${tech.rsiSig||''}) MACD:${tech.macd||'—'}(${tech.macdSig||''}) Trend:${tech.trend||'—'} Supp:$${tech.support||'—'} Res:$${tech.resistance||'—'} BB%:${tech.bbPct||'—'} ATR:${tech.atr||'—'} PE:${safe(md.trailingPE,1)} Beta:${safe(md.beta)} F&G:${md.fearGreed?.score||'—'} VIX:${safe(md.vix,1)} S&P:${md.sp500Change||'—'}% Target:$${safe(md.analystTarget)}(${md.analystCount||'—'}人) Vol:${tech.volRatio||'—'}x`:'';
+  const dataCtx=md.price?`[${symbol}] $${safe(md.price)} ${md.change||'—'}% | RSI:${tech.rsi||'—'}(${tech.rsiSig||''}) Stoch:${tech.stochK||'—'}%(${tech.stochSig||''}) | MACD:${tech.macd||'—'}(${tech.macdSig||''}) EMA9x21:${tech.emaCross||'—'} | Trend:${tech.trend||'—'} OBV:${tech.obvDir||'—'} | BB%:${tech.bbPct||'—'} ATR:${tech.atr||'—'} | Supp:$${tech.support||'—'} Res:$${tech.resistance||'—'} Pivot:$${tech.pivot||'—'} R1:$${tech.r1||'—'} S1:$${tech.s1||'—'} | PE:${safe(md.trailingPE,1)} Beta:${safe(md.beta)} | F&G:${md.fearGreed?.score||'—'} VIX:${safe(md.vix,1)} S&P:${md.sp500Change||'—'}% | Target:$${safe(md.analystTarget)}(${md.analystCount||'—'}人) Vol:${tech.volRatio||'—'}x`:'';
+  const macroCtx=md.macro?` | DXY:${safe(md.macro.dxy?.price,1)} 10Y:${safe(md.macro.t10y?.price,2)}% Gold:$${safe(md.macro.gold?.price,0)} Oil:$${safe(md.macro.oil?.price,1)}`:'';
   const tvCtx=tvState?.sym?` [TV]${tvState.sym} ${tvState.price||''} TF:${tvState.tf||''}`:'';
   const portCtx=portfolio?.length?`\n[保有]${portfolio.map(p=>p.symbol+' '+p.shares+'株@$'+p.avgCost).join(', ')}`:'';
+  const histCtx=symbolHistory?.length?`\n[前回分析]${symbolHistory.map(h=>`${new Date(h.timestamp).toLocaleDateString()}:${h.signal||'HOLD'}@$${h.price||'?'} Score:${h.score||'?'}/10 "${(h.summary||'').slice(0,80)}"`).join(' | ')}`:'';
+  const earCtx=md.earningsDays!=null?` | 決算:${md.earningsDays}日後(${md.earningsDate||''})`:''  ;
+  const evtCtx=md.upcomingEvents?.length?` | ${md.upcomingEvents.map(e=>`${e.label}:${e.daysUntil}日後`).join(' ')}`:''  ;
+  const sentCtx=md.newsSentiment?` | ニュース感情:${md.newsSentiment.score}点(+${md.newsSentiment.positive}/-${md.newsSentiment.negative}/${md.newsSentiment.total}件)`:''  ;
+  const insCtx=md.insiderTransactions?.length?`\n[インサイダー]${md.insiderTransactions.slice(0,3).map(t=>`${t.relation||t.name}:${t.shares>0?'買':'売'}${Math.abs(t.shares).toLocaleString()}株@${t.date}`).join(', ')}`:''  ;
   const userCmd=userInstruction?`\n[指示]${userInstruction}`:'';
-  return dataCtx+tvCtx+portCtx+userCmd;
+  return dataCtx+macroCtx+earCtx+evtCtx+sentCtx+tvCtx+portCtx+histCtx+insCtx+userCmd;
 }
 
 // ═══ Lite Mode: A → D → E (3 steps, ~15 sec) ═══
 ipcMain.handle('run-lite', async(_,{keys,symbol,marketData,tvState,screenshot,lang,userInstruction,portfolio})=>{
   const li=lang==='ja'?'日本語で回答。':lang==='zh'?'中文回答。':'English.';
-  const activeKey=keys.gemini||keys.claude||keys.openai;
+  const activeKey=keys.gemini||keys.claude||keys.openai||keys.deepseek;
   if(!activeKey)return{error:'APIキーが設定されていません。⚙設定からAPIキーを入力してください'};
-  const type=keys.gemini?'gemini':keys.claude?'claude':'openai';
-  const mdl=keys.gemini?(keys.geminiModel||'gemini-2.5-flash'):keys.claude?'claude-sonnet-4-20250514':'gpt-4o';
-  const ctx=buildCtx(symbol,marketData,tvState,portfolio,userInstruction);
+  const type=keys.gemini?'gemini':keys.claude?'claude':keys.openai?'openai':'deepseek';
+  const mdl=keys.gemini?(keys.geminiModel||'gemini-2.5-flash'):keys.claude?'claude-sonnet-4-20250514':keys.openai?'gpt-4o':(keys.deepseekModel||'deepseek-chat');
+  let symHist=[];try{const hf=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'history.json'),'utf8'));symHist=hf.filter(e=>e.symbol?.toUpperCase()===symbol?.toUpperCase()).slice(0,3);}catch(e){}
+  const ctx=buildCtx(symbol,marketData,tvState,portfolio,userInstruction,symHist);
   const results={},rawTexts={};
   const progress=(agent,status)=>send('agent-progress',{agent,status});
   try{
@@ -106,19 +164,19 @@ ipcMain.handle('run-lite', async(_,{keys,symbol,marketData,tvState,screenshot,la
     progress('A','running');
     const aC=[];if(screenshot)aC.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:screenshot}});
     aC.push({type:'text',text:`${symbol}分析。${ctx}`});
-    rawTexts.A=await callAI(type,activeKey,mdl,[{role:'system',content:`クオンツ・アナリスト。${li}テクニカル+ファンダメンタル分析。JSON:{"score":N,"signal":"BUY/SELL/HOLD","confidence":N,"analysis":"...詳細","risks":["..."],"catalysts":["..."]}`},{role:'user',content:aC}],true);
+    rawTexts.A=await callAI(type,activeKey,mdl,[{role:'system',content:`エリート・クオンツアナリスト。${li}スクリーンショット・テクニカル・ファンダメンタルを統合分析。研究メモとして出力（個人向け売買指示禁止）。\n【必須分析】①価格とSMA20/50/200・EMA9/21の位置関係 ②RSIとStochの乖離・方向 ③MACD勢いとヒストグラム ④BB%とボラティリティ状態 ⑤OBVで出来高確認 ⑥チャートパターン認識（ダブルトップ/カップ/三角保ち合い等） ⑦ピボットポイントとS1/R1との距離 ⑧ファンダ・バリュエーション\nJSON:{"score":N(1-10),"signal":"BULLISH/BEARISH/NEUTRAL/WATCH","confidence":N(0-100),"analysis":"...詳細テクニカル分析","patterns":["...チャートパターン"],"volAnalysis":"...出来高・OBV分析","maConfluence":"...MA整列状態","risks":["..."],"catalysts":["..."]}`},{role:'user',content:aC}],true);
     results.A=parseJSON(rawTexts.A);progress('A','done');
 
     // D: Risk (parallel-safe, depends only on A)
     progress('D','running');
-    rawTexts.D=await callAI(type,activeKey,mdl,[{role:'system',content:`リスクMgr。${li}GO/NO-GO。JSON:{"decision":"GO/NO-GO/CONDITIONAL","maxLoss":"$X","killSwitch":["..."],"warnings":["..."],"riskScore":N,"eventRisks":["..."]}`},{role:'user',content:`A:${JSON.stringify(results.A)}\n${ctx}`}],false);
+    rawTexts.D=await callAI(type,activeKey,mdl,[{role:'system',content:`リスクMgr。${li}GO/NO-GO判定。具体的な数値根拠を示す。JSON:{"decision":"GO/NO-GO/CONDITIONAL","maxLoss":"$X","killSwitch":["具体的な撤退条件..."],"warnings":["..."],"riskScore":N(1-10),"eventRisks":["..."],"stopLevel":"$X"}`},{role:'user',content:`A:${JSON.stringify(results.A)}\n${ctx}`}],false);
     results.D=parseJSON(rawTexts.D);progress('D','done');
 
     // E: CEO with entry conditions
     progress('E','running');
     const eC=[];if(screenshot)eC.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:screenshot}});
     eC.push({type:'text',text:`A:${JSON.stringify(results.A)}\nD:${JSON.stringify(results.D)}\n${ctx}`});
-    rawTexts.E=await callAI(type,activeKey,mdl,[{role:'system',content:`CEO秘書・最終判断AI。${li}クオンツとリスク分析を統合して最終レポート。\n\n【重要】以下を必ず含めること：\n1. エントリー条件：「現在は〇〇のため待機。$X以下になったらBUY」「即座にBUY可能。理由：〇〇」のように具体的な条件\n2. 回避すべきイベント：「決算発表(X月X日)前はポジションを取らない」等\n\nJSON:{"finalVerdict":"BUY/SELL/HOLD/WAIT","confidence":N,"score":N,"summary":"...","keyReasons":["..."],"actionPlan":"...","entryCondition":"具体的なエントリー条件","avoidEvents":["..."],"riskWarning":"...","timeHorizon":"SHORT|MEDIUM|LONG|NEUTRAL","riskLevel":"LOW|MEDIUM|HIGH|CRITICAL","whyMattersToUser":"持ち株・ウォッチとの関連性（1-2文）","prediction":{"shortTerm":"1-2週間:...","midTerm":"1-3ヶ月:...","longTerm":"6-12ヶ月:..."}}`},{role:'user',content:eC}],false);
+    rawTexts.E=await callAI(type,activeKey,mdl,[{role:'system',content:`CEO秘書・研究統合AI。${li}クオンツ・リスク分析を統合して研究レポートを作成。個人向け売買指示・断定的な価格予測・必ず儲かる表現は禁止。\n\n【必須項目】\n1. 観察条件：具体的な価格水準や指標値を使った条件（例:「RSI 60超＋BB上抜けで強気継続」）\n2. 回避イベント：「決算前はボラティリティに注意」等\n3. 予測：断定せず「注目ポイント」形式で短中長期\n\nJSON:{"finalVerdict":"BULLISH/BEARISH/NEUTRAL/WATCH","confidence":N(0-100),"score":N(1-10),"summary":"...2-3文の核心まとめ","keyReasons":["具体的根拠3-5件..."],"actionPlan":"次に確認すべき情報・観察ポイント","entryCondition":"具体的な価格・指標条件（例:$XXX以上かつRSI50超）","avoidEvents":["..."],"riskWarning":"...","timeHorizon":"SHORT|MEDIUM|LONG|NEUTRAL","riskLevel":"LOW|MEDIUM|HIGH|CRITICAL","whyMattersToUser":"持ち株・ウォッチとの関連性（1-2文）","prediction":{"shortTerm":"1-2週間の注目点（具体的水準を含む）","midTerm":"1-3ヶ月の注目点（触媒を含む）","longTerm":"6-12ヶ月の注目点（テーマを含む）"}}`},{role:'user',content:eC}],false);
     results.E=parseJSON(rawTexts.E);progress('E','done');
     return{ok:true,results,rawTexts,mode:'lite'};
   }catch(e){return{error:e.message,partialResults:results,rawTexts};}
@@ -127,17 +185,18 @@ ipcMain.handle('run-lite', async(_,{keys,symbol,marketData,tvState,screenshot,la
 // ═══ Full 6-Agent ═══
 ipcMain.handle('run-agents',async(_,{keys,symbol,marketData,tvState,screenshot,lang,userInstruction,portfolio})=>{
   const li=lang==='ja'?'日本語で回答。':lang==='zh'?'中文回答。':'English.';
-  const activeKey=keys.gemini||keys.claude||keys.openai;
+  const activeKey=keys.gemini||keys.claude||keys.openai||keys.deepseek;
   if(!activeKey)return{error:'APIキーが設定されていません。⚙設定からAPIキーを入力してください'};
-  const type=keys.gemini?'gemini':keys.claude?'claude':'openai';
-  const mdl=keys.gemini?(keys.geminiModel||'gemini-2.5-flash'):keys.claude?'claude-sonnet-4-20250514':'gpt-4o';
-  const ctx=buildCtx(symbol,marketData,tvState,portfolio,userInstruction);
+  const type=keys.gemini?'gemini':keys.claude?'claude':keys.openai?'openai':'deepseek';
+  const mdl=keys.gemini?(keys.geminiModel||'gemini-2.5-flash'):keys.claude?'claude-sonnet-4-20250514':keys.openai?'gpt-4o':(keys.deepseekModel||'deepseek-chat');
+  let symHist=[];try{const hf=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'history.json'),'utf8'));symHist=hf.filter(e=>e.symbol?.toUpperCase()===symbol?.toUpperCase()).slice(0,3);}catch(e){}
+  const ctx=buildCtx(symbol,marketData,tvState,portfolio,userInstruction,symHist);
   const results={},rawTexts={};
   const progress=(agent,status)=>send('agent-progress',{agent,status});
   try{
     progress('A','running');
     const aC=[];if(screenshot)aC.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:screenshot}});aC.push({type:'text',text:`${symbol}分析。${ctx}`});
-    rawTexts.A=await callAI(type,activeKey,mdl,[{role:'system',content:`クオンツ・アナリスト。${li}詳細テクニカル+ファンダメンタル。JSON:{"score":N,"signal":"BUY/SELL/HOLD","confidence":N,"analysis":"...詳細","risks":["..."],"catalysts":["..."]}`},{role:'user',content:aC}],true);
+    rawTexts.A=await callAI(type,activeKey,mdl,[{role:'system',content:`エリート・クオンツアナリスト。${li}スクリーンショット・テクニカル・ファンダメンタルを統合分析。研究メモとして出力（個人向け売買指示禁止）。\n【必須分析】①価格とSMA20/50/200・EMA9/21の位置関係 ②RSIとStochの乖離・方向 ③MACD勢いとヒストグラム ④BB%とボラティリティ状態 ⑤OBVで出来高確認 ⑥チャートパターン認識（ダブルトップ/カップ/三角保ち合い等） ⑦ピボットポイントとS1/R1との距離 ⑧ファンダ・バリュエーション\nJSON:{"score":N(1-10),"signal":"BULLISH/BEARISH/NEUTRAL/WATCH","confidence":N(0-100),"analysis":"...詳細テクニカル分析","patterns":["...チャートパターン"],"volAnalysis":"...出来高・OBV分析","maConfluence":"...MA整列状態","risks":["..."],"catalysts":["..."]}`},{role:'user',content:aC}],true);
     results.A=parseJSON(rawTexts.A);progress('A','done');
 
     progress('B','running');progress('D','running');
@@ -155,7 +214,7 @@ ipcMain.handle('run-agents',async(_,{keys,symbol,marketData,tvState,screenshot,l
     progress('E','running');
     const eC=[];if(screenshot)eC.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:screenshot}});
     eC.push({type:'text',text:`統合:\nA:${JSON.stringify(results.A)}\nB:${JSON.stringify(results.B)}\nC:${JSON.stringify(results.C)}\nD:${JSON.stringify(results.D)}\n${ctx}`});
-    rawTexts.E=await callAI(type,activeKey,mdl,[{role:'system',content:`CEO秘書・最終判断AI。${li}\n【重要】以下を必ず含めること：\n1. エントリー条件：「$X以下でBUY」「即BUY可能」等の具体条件\n2. 回避イベント：「決算前は回避」等\n\nJSON:{"finalVerdict":"BUY/SELL/HOLD/WAIT","confidence":N,"score":N,"summary":"...詳細","keyReasons":["..."],"actionPlan":"...","entryCondition":"具体的条件","avoidEvents":["..."],"riskWarning":"...","timeHorizon":"SHORT|MEDIUM|LONG|NEUTRAL","riskLevel":"LOW|MEDIUM|HIGH|CRITICAL","whyMattersToUser":"持ち株・ウォッチとの関連性（1-2文）","prediction":{"shortTerm":"1-2週間:...","midTerm":"1-3ヶ月:...","longTerm":"6-12ヶ月:..."}}`},{role:'user',content:eC}],false);
+    rawTexts.E=await callAI(type,activeKey,mdl,[{role:'system',content:`CEO秘書・研究統合AI。${li} 個人向け売買指示、断定的な価格予測、必ず儲かる表現は禁止。\n【重要】以下を必ず含めること：\n1. 観察条件：「この材料が確認できれば強気継続」「この水準を割るとリスク上昇」等\n2. 回避イベント：「決算前はボラティリティに注意」等\n\nJSON:{"finalVerdict":"BULLISH/BEARISH/NEUTRAL/WATCH","confidence":N,"score":N,"summary":"...詳細","keyReasons":["..."],"actionPlan":"次に確認すべき情報・観察ポイント","entryCondition":"具体的な観察条件","avoidEvents":["..."],"riskWarning":"...","timeHorizon":"SHORT|MEDIUM|LONG|NEUTRAL","riskLevel":"LOW|MEDIUM|HIGH|CRITICAL","whyMattersToUser":"持ち株・ウォッチとの関連性（1-2文）","prediction":{"shortTerm":"1-2週間の注目点:...","midTerm":"1-3ヶ月の注目点:...","longTerm":"6-12ヶ月の注目点:..."}}`},{role:'user',content:eC}],false);
     results.E=parseJSON(rawTexts.E);progress('E','done');
 
     progress('F','running');
@@ -168,17 +227,30 @@ ipcMain.handle('run-agents',async(_,{keys,symbol,marketData,tvState,screenshot,l
 function parseJSON(raw){if(!raw)return{parseError:true,raw:''};try{let depth=0,start=-1;for(let i=0;i<raw.length;i++){if(raw[i]==='{'){if(depth===0)start=i;depth++;}else if(raw[i]==='}'){depth--;if(depth===0&&start>=0)return JSON.parse(raw.substring(start,i+1));}}return{parseError:true,raw};}catch(e){return{parseError:true,raw};}}
 
 // ═══ Single AI / Multi-AI / Agent Chat ═══
-ipcMain.handle('ai',async(_,{key,model,messages,search})=>{try{if(!key)return{error:'APIキーが設定されていません'};const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';return{ok:true,text:await callAI(type,key,model,messages,search)};}catch(e){return{error:e.message};}});
-ipcMain.handle('multi-ai',async(_,{keys,messages})=>{const calls=[];if(keys.gemini)calls.push(callAI('gemini',keys.gemini,keys.geminiModel||'gemini-2.5-flash',messages,true).then(t=>({ai:'Gemini',text:t})).catch(e=>({ai:'Gemini',error:e.message})));if(keys.claude)calls.push(callAI('claude',keys.claude,'claude-sonnet-4-20250514',messages,true).then(t=>({ai:'Claude',text:t})).catch(e=>({ai:'Claude',error:e.message})));if(keys.openai)calls.push(callAI('openai',keys.openai,'gpt-4o',messages,false).then(t=>({ai:'GPT-4o',text:t})).catch(e=>({ai:'GPT-4o',error:e.message})));return{ok:true,results:await Promise.all(calls)};});
-ipcMain.handle('agent-chat',async(_,{key,model,message,agentResults,marketData,lang})=>{try{const li=lang==='ja'?'日本語で詳細に。':lang==='zh'?'详细中文。':'Detailed English.';const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';return{ok:true,text:await callAI(type,key,model,[{role:'system',content:`CEO秘書AI。${li}分析結果を踏まえて具体的数値で回答。\n分析:${JSON.stringify(agentResults||{})}`},{role:'user',content:message}],false)};}catch(e){return{error:e.message};}});
+ipcMain.handle('ai',async(_,{key,model,messages,search})=>{try{if(!key)return{error:'APIキーが設定されていません'};return{ok:true,text:await callAI(inferAIType(key,model),key,model,messages,search)};}catch(e){return{error:e.message};}});
+ipcMain.handle('multi-ai',async(_,{keys,messages})=>{const calls=[];if(keys.gemini)calls.push(callAI('gemini',keys.gemini,keys.geminiModel||'gemini-2.5-flash',messages,true).then(t=>({ai:'Gemini',text:t})).catch(e=>({ai:'Gemini',error:e.message})));if(keys.claude)calls.push(callAI('claude',keys.claude,'claude-sonnet-4-20250514',messages,true).then(t=>({ai:'Claude',text:t})).catch(e=>({ai:'Claude',error:e.message})));if(keys.openai)calls.push(callAI('openai',keys.openai,'gpt-4o',messages,false).then(t=>({ai:'GPT-4o',text:t})).catch(e=>({ai:'GPT-4o',error:e.message})));if(keys.deepseek)calls.push(callAI('deepseek',keys.deepseek,keys.deepseekModel||'deepseek-chat',messages,false).then(t=>({ai:'DeepSeek',text:t})).catch(e=>({ai:'DeepSeek',error:e.message})));return{ok:true,results:await Promise.all(calls)};});
+// ═══ Debate AI: Bull vs Bear vs Judge ═══
+ipcMain.handle('debate-ai',async(_,{debates})=>{
+  if(!debates?.length)return{error:'No debate calls'};
+  const calls=debates.map(d=>{
+    const type=inferAIType(d.key,d.model);
+    return callAI(type,d.key,d.model,d.messages,false)
+      .then(t=>({role:d.role,ai:d.ai,text:t}))
+      .catch(e=>({role:d.role,ai:d.ai,error:e.message}));
+  });
+  return{ok:true,results:await Promise.all(calls)};
+});
+
+ipcMain.handle('agent-chat',async(_,{key,model,message,agentResults,marketData,lang})=>{try{const li=lang==='ja'?'日本語で詳細に。':lang==='zh'?'详细中文。':'Detailed English.';return{ok:true,text:await callAI(inferAIType(key,model),key,model,[{role:'system',content:`CEO秘書AI。${li}分析結果を踏まえて具体的数値で回答。\n分析:${JSON.stringify(agentResults||{})}`},{role:'user',content:message}],false)};}catch(e){return{error:e.message};}});
 
 // ═══ Auto Monitor ═══
 ipcMain.handle('auto-start',async(_,{key,interval,lang,model,rules})=>{if(autoTimer)clearInterval(autoTimer);let lastHash='';const ruleText=rules?.length?`\n条件: ${rules.map(r=>r.condition+'→'+r.action).join('; ')}`:'';autoTimer=setInterval(async()=>{try{const img=await captureScreen(55);if(!img)return;const hash=img.slice(50,250);if(hash===lastHash)return;lastHash=hash;const li=lang==='ja'?'日本語。':lang==='zh'?'中文。':'English.';const text=await callAI('gemini',key,model||'gemini-2.5-flash',[{role:'system',content:`Stock monitor. ${li} ONLY if important. Otherwise "OK".${ruleText}`},{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}},{type:'text',text:'Monitor.'}]}],false);if(text&&!text.trim().startsWith('OK'))send('auto-alert',{text,img,time:new Date().toLocaleTimeString()});}catch(e){}},(interval||15)*1000);return{ok:true};});
 ipcMain.handle('auto-stop',()=>{if(autoTimer){clearInterval(autoTimer);autoTimer=null;}return{ok:true};});
 
 // ═══ Data persistence ═══
-ipcMain.handle('save-history',(_,{entry})=>{try{const file=path.join(DATA_DIR,'history.json');let h=[];try{h=JSON.parse(fs.readFileSync(file,'utf8'));}catch(e){}h.unshift({...entry,timestamp:Date.now()});if(h.length>50)h=h.slice(0,50);fs.writeFileSync(file,JSON.stringify(h,null,2));return{ok:true};}catch(e){return{error:e.message};}});
+ipcMain.handle('save-history',(_,{entry})=>{try{const file=path.join(DATA_DIR,'history.json');let h=[];try{h=JSON.parse(fs.readFileSync(file,'utf8'));}catch(e){}h.unshift({...entry,timestamp:Date.now()});if(h.length>100)h=h.slice(0,100);fs.writeFileSync(file,JSON.stringify(h,null,2));return{ok:true};}catch(e){return{error:e.message};}});
 ipcMain.handle('load-history',()=>{try{return{ok:true,history:JSON.parse(fs.readFileSync(path.join(DATA_DIR,'history.json'),'utf8'))};}catch(e){return{ok:true,history:[]};}});
+ipcMain.handle('load-symbol-history',(_,{symbol})=>{try{const h=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'history.json'),'utf8'));return{ok:true,history:h.filter(e=>e.symbol?.toUpperCase()===symbol?.toUpperCase()).slice(0,3)};}catch(e){return{ok:true,history:[]};}});
 ipcMain.handle('save-portfolio',(_,{portfolio})=>{try{fs.writeFileSync(path.join(DATA_DIR,'portfolio.json'),JSON.stringify(portfolio,null,2));return{ok:true};}catch(e){return{error:e.message};}});
 ipcMain.handle('load-portfolio',()=>{try{return{ok:true,portfolio:JSON.parse(fs.readFileSync(path.join(DATA_DIR,'portfolio.json'),'utf8'))};}catch(e){return{ok:true,portfolio:[]};}});
 // Watchlist
@@ -212,7 +284,7 @@ ipcMain.handle('earnings-data',async(_,{symbols})=>{
 ipcMain.handle('portfolio-dashboard',async(_,{key,model,lang,portfolio,watchlist,earningsData})=>{
   try{
     if(!key)return{error:'APIキー未設定'};
-    const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';
+    const type=inferAIType(key,model);
     const li=lang==='ja'?'日本語で回答。':lang==='zh'?'中文回答。':'Reply in English.';
     // Fetch current prices for all portfolio + watchlist symbols
     const portSyms=portfolio.map(p=>p.symbol).filter(Boolean);
@@ -279,7 +351,7 @@ ipcMain.handle('watchlist-analysis',async(_,{key,model,lang,watchlist})=>{
         rows.push({symbol:sym,price:meta?.regularMarketPrice,change:meta?.regularMarketPrice&&meta?.chartPreviousClose?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null,rsi:tech?.rsi,trend:tech?.trend,support:tech?.support,resistance:tech?.resistance,volRatio:tech?.volRatio});
       }catch(e){rows.push({symbol:sym,error:true});}
     }
-    const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';
+    const type=inferAIType(key,model);
     const li=lang==='zh'?'中文回答。':lang==='ja'?'日本語で回答。':'Reply in English.';
     const prompt=`${li}请分析下面自选股，挑出今天最值得关注的3只，并给出简洁理由、风险、行动建议。仅返回JSON:
 {"summary":"一句话总览","top":[{"symbol":"","action":"WATCH|BUY_ZONE|AVOID|HOLD","reason":"","risk":"","trigger":""}],"skip":["可以暂时忽略的代码和原因"]}
@@ -447,8 +519,8 @@ ipcMain.handle('smart-monitor-start',async(_,{key,model,lang,triggers,interval})
       if(data.inds.macd!=null&&data.inds.macdSignal!=null&&prev.inds?.macd!=null&&prev.inds?.macdSignal!=null){
         const prevDiff=prev.inds.macd-prev.inds.macdSignal;
         const curDiff=data.inds.macd-data.inds.macdSignal;
-        if(prevDiff<0&&curDiff>0)alerts.push({type:'MACD_CROSS_UP',msg:`${data.sym} MACDゴールデンクロス（買いシグナル）`});
-        if(prevDiff>0&&curDiff<0)alerts.push({type:'MACD_CROSS_DN',msg:`${data.sym} MACDデッドクロス（売りシグナル）`});
+        if(prevDiff<0&&curDiff>0)alerts.push({type:'MACD_CROSS_UP',msg:`${data.sym} MACDゴールデンクロス（強気転換の観察ポイント）`});
+        if(prevDiff>0&&curDiff<0)alerts.push({type:'MACD_CROSS_DN',msg:`${data.sym} MACDデッドクロス（弱気転換の観察ポイント）`});
       }
       
       // 5. Bollinger Band breakout (Chart API provides BB values)
@@ -474,17 +546,17 @@ ipcMain.handle('smart-monitor-start',async(_,{key,model,lang,triggers,interval})
         analyzing=true;
         try{
           const li=lang==='ja'?'日本語で。':lang==='zh'?'中文。':'English.';
-          const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';
+          const type=inferAIType(key,model);
           const priceHist=streamData.history.slice(-12).map(d=>'$'+d.price?.toFixed(2)).join('→');
           const ohlcvCtx=data.ohlcv?.length?`\n直近ローソク: ${data.ohlcv.slice(-5).map(b=>`O:${b.o?.toFixed(2)} H:${b.h?.toFixed(2)} L:${b.l?.toFixed(2)} C:${b.c?.toFixed(2)}`).join(' | ')}`:'';
           const fullInds=Object.entries(data.inds||{}).filter(([k,v])=>v!=null).map(([k,v])=>`${k}:${typeof v==='number'?v.toFixed(2):v}`).join(' ');
           const img=await captureScreen(60);
           const content=[];
           if(img)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}});
-          content.push({type:'text',text:`【リアルタイムアラート】\n${alerts.map(a=>a.msg).join('\n')}\n\n現在: ${data.sym} $${data.price?.toFixed(2)} ${fullInds}\n直近推移: ${priceHist}${ohlcvCtx}\nデータ取得方式: ${data.mode||'unknown'}\n\n今すぐ行動すべきか？具体的なアドバイスを。`});
+          content.push({type:'text',text:`【リアルタイムアラート】\n${alerts.map(a=>a.msg).join('\n')}\n\n現在: ${data.sym} $${data.price?.toFixed(2)} ${fullInds}\n直近推移: ${priceHist}${ohlcvCtx}\nデータ取得方式: ${data.mode||'unknown'}\n\n何が変化したか、リスクは何か、次に観察すべき条件は何かを整理してください。`});
           
           const analysis=await callAI(type,key,model||'gemini-2.5-flash',[
-            {role:'system',content:`リアルタイム株式アドバイザー。${li}トリガーが発動しました。簡潔に：1)今すぐ行動すべきか 2)推奨アクション 3)注意点。`},
+            {role:'system',content:`リアルタイム株式研究アシスタント。${li}トリガーが発動しました。売買指示ではなく、簡潔に：1)何が起きたか 2)リスク 3)次に観察する条件。`},
             {role:'user',content}
           ],false);
           
@@ -516,12 +588,139 @@ ipcMain.handle('get-stream-context',()=>{
 ipcMain.handle('ai-with-context',async(_,{key,model,messages,search,streamContext})=>{
   try{
     if(!key)return{error:'APIキーが設定されていません'};
-    const type=key.startsWith('AIza')?'gemini':key.startsWith('sk-ant')?'claude':'openai';
+    const type=inferAIType(key,model);
     // Inject real-time context into system prompt
     if(streamContext&&messages[0]?.role==='system'){
       const ctx=`\n\n【リアルタイムデータ（自動更新）】\n銘柄: ${streamContext.sym} 価格: $${streamContext.price?.toFixed(2)} RSI: ${streamContext.inds?.rsi?.toFixed(1)||'?'} MACD: ${streamContext.inds?.macd?.toFixed(3)||'?'}\n直近推移: ${(streamContext.recentPrices||[]).map(p=>'$'+(p.p?.toFixed(2)||'?')).join('→')}`;
       messages[0].content+=ctx;
     }
     return{ok:true,text:await callAI(type,key,model,messages,search)};
+  }catch(e){return{error:e.message};}
+});
+
+// ═══ Research Workbench: fundamentals, news, review, scoring ═══
+function rawVal(v){return v?.raw??v??null;}
+function fmtBig(n){if(n==null||isNaN(n))return null;const a=Math.abs(Number(n));if(a>=1e12)return(n/1e12).toFixed(2)+'T';if(a>=1e9)return(n/1e9).toFixed(2)+'B';if(a>=1e6)return(n/1e6).toFixed(2)+'M';return String(n);}
+function calcResearchScore(row){
+  let fundamental=50,valuation=50,technical=50,event=50,sentiment=50,risk=50;
+  if(row.revenueGrowth!=null)fundamental+=Math.max(-25,Math.min(25,row.revenueGrowth*100));
+  if(row.grossMargins!=null)fundamental+=Math.max(-10,Math.min(15,(row.grossMargins-.35)*40));
+  if(row.trailingPE!=null){valuation=row.trailingPE<0?30:row.trailingPE<18?72:row.trailingPE<35?58:row.trailingPE<60?42:28;}
+  if(row.rsi!=null){technical=row.trend?.includes('上')?68:row.trend?.includes('下')?35:52;if(row.rsi>72)technical-=12;if(row.rsi<30)technical+=6;}
+  if(row.earningsDays!=null){event=row.earningsDays>=0&&row.earningsDays<=7?72:row.earningsDays<=21?62:48;if(row.earningsDays<=3)risk+=12;}
+  if(row.newsCount!=null){sentiment+=Math.min(18,row.newsCount*3);event+=Math.min(12,row.newsCount*2);}
+  if(row.change!=null&&parseFloat(row.change)>2)sentiment+=8;
+  if(row.change!=null&&parseFloat(row.change)<-2)sentiment-=8;
+  if(row.change!=null){const ch=Math.abs(parseFloat(row.change));if(ch>5)risk+=18;else if(ch>2)risk+=8;}
+  if(row.beta!=null&&row.beta>1.5)risk+=12;
+  const clamp=n=>Math.max(1,Math.min(100,Math.round(n)));
+  const overall=clamp(fundamental*.24+valuation*.16+technical*.20+event*.12+sentiment*.10+(100-risk)*.18);
+  return{overall,fundamental:clamp(fundamental),valuation:clamp(valuation),technical:clamp(technical),event:clamp(event),sentiment:clamp(sentiment),risk:clamp(risk)};
+}
+
+ipcMain.handle('company-research',async(_,{key,model,lang,symbol,marketData})=>{
+  try{
+    if(!key)return{error:'APIキー未設定'};
+    if(!symbol)return{error:'銘柄コードを入力してください'};
+    const type=inferAIType(key,model),li=lang==='zh'?'中文回答。':lang==='ja'?'日本語で回答。':'Reply in English.';
+    const data={symbol,marketData:marketData||{}};
+    try{
+      const qs=await fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=assetProfile,financialData,defaultKeyStatistics,summaryDetail,incomeStatementHistoryQuarterly,cashflowStatementHistoryQuarterly,calendarEvents,earningsTrend`,{headers:UA});
+      const r=qs?.quoteSummary?.result?.[0]||{};
+      const ap=r.assetProfile||{},fd=r.financialData||{},ks=r.defaultKeyStatistics||{},sd=r.summaryDetail||{};
+      data.profile={name:ap.longBusinessSummary?null:symbol,sector:ap.sector,industry:ap.industry,employees:ap.fullTimeEmployees,summary:ap.longBusinessSummary};
+      data.metrics={price:marketData?.price,revenueGrowth:rawVal(fd.revenueGrowth),grossMargins:rawVal(fd.grossMargins),operatingMargins:rawVal(fd.operatingMargins),profitMargins:rawVal(fd.profitMargins),totalRevenue:rawVal(fd.totalRevenue),freeCashflow:rawVal(fd.freeCashflow),totalCash:rawVal(fd.totalCash),totalDebt:rawVal(fd.totalDebt),trailingPE:rawVal(sd.trailingPE)||rawVal(ks.trailingPE),forwardPE:rawVal(sd.forwardPE)||rawVal(ks.forwardPE),marketCap:rawVal(sd.marketCap),beta:rawVal(ks.beta)};
+      data.earningsDate=rawVal(r.calendarEvents?.earnings?.earningsDate?.[0])?new Date(rawVal(r.calendarEvents.earnings.earningsDate[0])*1000).toISOString().slice(0,10):null;
+      data.quarterlyIncome=(r.incomeStatementHistoryQuarterly?.incomeStatementHistory||[]).slice(0,4).map(q=>({end:q.endDate?.fmt,revenue:fmtBig(rawVal(q.totalRevenue)),grossProfit:fmtBig(rawVal(q.grossProfit)),netIncome:fmtBig(rawVal(q.netIncome))}));
+      data.quarterlyCashflow=(r.cashflowStatementHistoryQuarterly?.cashflowStatements||[]).slice(0,4).map(q=>({end:q.endDate?.fmt,operatingCashflow:fmtBig(rawVal(q.totalCashFromOperatingActivities)),capex:fmtBig(rawVal(q.capitalExpenditures))}));
+    }catch(e){data.fetchWarning=e.message;}
+    const prompt=`${li}你是股票研究助手，不提供买卖建议。请把下面数据整理成普通投资者能看懂的研究报告，必须包含：公司做什么、最新财务表现、收入/利润/毛利率/现金流变化、估值观察、市场关注点、未来3个机会、未来3个风险、下一季度重点看什么、适合长期跟踪还是短线事件观察。最后加一句“不构成投资建议”。\n\n数据:\n${JSON.stringify(data)}`;
+    const text=await callAI(type,key,model||'gemini-2.5-flash',[{role:'user',content:prompt}],true);
+    return{ok:true,text,data};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('news-brief',async(_,{key,model,lang,symbol})=>{
+  try{
+    if(!key)return{error:'APIキー未設定'};
+    const type=inferAIType(key,model),li=lang==='zh'?'中文回答。':lang==='ja'?'日本語で回答。':'Reply in English.';
+    const s=await fetchR(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(symbol)}&newsCount=8&quotesCount=1`,{headers:UA});
+    const news=(s?.news||[]).slice(0,8).map(n=>({title:n.title,publisher:n.publisher,providerPublishTime:n.providerPublishTime?new Date(n.providerPublishTime*1000).toISOString():null,link:n.link}));
+    const prompt=`${li}请解释这些新闻可能如何影响 ${symbol}。不要给买卖建议。输出：今日最重要的3条、为什么影响股价、是短期噪音还是长期变量、需要继续关注什么、风险提醒。\n\n新闻:\n${JSON.stringify(news)}`;
+    const text=await callAI(type,key,model||'gemini-2.5-flash',[{role:'user',content:prompt}],true);
+    return{ok:true,text,news};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('trade-review',async(_,{key,model,lang,tradeText,screenshot})=>{
+  try{
+    if(!key)return{error:'APIキー未設定'};
+    if(!tradeText&&!screenshot)return{error:'请输入交易记录或上传截图'};
+    const type=inferAIType(key,model),li=lang==='zh'?'中文回答。':lang==='ja'?'日本語で回答。':'Reply in English.';
+    const content=[];if(screenshot)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:screenshot}});content.push({type:'text',text:tradeText||''});
+    const text=await callAI(type,key,model||'gemini-2.5-flash',[
+      {role:'system',content:`交易复盘教练。${li}不评价用户人格，不给下一笔具体买卖建议。聚焦纪律、计划、情绪、风险管理、复盘清单。`},
+      {role:'user',content}
+    ],false);
+    return{ok:true,text};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('score-watchlist',async(_,{symbols})=>{
+  const rows=[];
+  for(const sym of (symbols||[]).slice(0,20)){
+    try{
+      const md={};
+      const yf=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=3mo`,{headers:UA});
+      const res=yf?.chart?.result?.[0],meta=res?.meta,q=res?.indicators?.quote?.[0],ts=res?.timestamp;
+      const ohlcv=ts&&q?ts.map((t,i)=>({d:new Date(t*1000).toISOString().slice(0,10),h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume[i]})).filter(d=>d.c!=null).slice(-60):[];
+      const tech=ohlcv.length>20?calcTech(ohlcv):{};
+      md.price=meta?.regularMarketPrice;md.change=meta?.regularMarketPrice&&meta?.chartPreviousClose?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null;md.rsi=tech?.rsi?parseFloat(tech.rsi):null;md.trend=tech?.trend;
+      try{const qs=await fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=financialData,summaryDetail,defaultKeyStatistics,calendarEvents`,{headers:UA});const r=qs?.quoteSummary?.result?.[0]||{};md.revenueGrowth=rawVal(r.financialData?.revenueGrowth);md.grossMargins=rawVal(r.financialData?.grossMargins);md.trailingPE=rawVal(r.summaryDetail?.trailingPE)||rawVal(r.defaultKeyStatistics?.trailingPE);md.beta=rawVal(r.defaultKeyStatistics?.beta);const er=rawVal(r.calendarEvents?.earnings?.earningsDate?.[0]);if(er)md.earningsDays=Math.round((er*1000-Date.now())/86400000);}catch(e){}
+      try{const ns=await fetchR(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&newsCount=5&quotesCount=0`,{headers:UA});md.newsCount=(ns?.news||[]).length;}catch(e){}
+      rows.push({symbol:sym,...md,score:calcResearchScore(md)});
+    }catch(e){rows.push({symbol:sym,error:e.message});}
+  }
+  return{ok:true,rows};
+});
+
+ipcMain.handle('watchlist-daily-brief',async(_,{key,model,lang,watchlist})=>{
+  try{
+    if(!key)return{error:'APIキー未設定'};
+    const symbols=(watchlist||[]).map(w=>String(w.symbol||'').toUpperCase()).filter(Boolean).slice(0,15);
+    if(!symbols.length)return{error:'自选股为空'};
+    const rows=[];
+    for(const sym of symbols){
+      const row={symbol:sym};
+      try{
+        const yf=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=3mo`,{headers:UA});
+        const res=yf?.chart?.result?.[0],meta=res?.meta,q=res?.indicators?.quote?.[0],ts=res?.timestamp;
+        const ohlcv=ts&&q?ts.map((t,i)=>({d:new Date(t*1000).toISOString().slice(0,10),h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume[i]})).filter(d=>d.c!=null).slice(-60):[];
+        const tech=ohlcv.length>20?calcTech(ohlcv):{};
+        row.price=meta?.regularMarketPrice;row.change=meta?.regularMarketPrice&&meta?.chartPreviousClose?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null;row.rsi=tech?.rsi;row.trend=tech?.trend;row.support=tech?.support;row.resistance=tech?.resistance;
+      }catch(e){row.priceError=e.message;}
+      try{
+        const q=await fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=calendarEvents,financialData,summaryDetail`,{headers:UA});
+        const r=q?.quoteSummary?.result?.[0]||{},er=rawVal(r.calendarEvents?.earnings?.earningsDate?.[0]);
+        if(er){row.earningsDate=new Date(er*1000).toISOString().slice(0,10);row.earningsDays=Math.round((er*1000-Date.now())/86400000);}
+        row.revenueGrowth=rawVal(r.financialData?.revenueGrowth);row.grossMargins=rawVal(r.financialData?.grossMargins);row.trailingPE=rawVal(r.summaryDetail?.trailingPE);
+      }catch(e){}
+      try{
+        const ns=await fetchR(`https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&newsCount=4&quotesCount=0`,{headers:UA});
+        row.news=(ns?.news||[]).slice(0,4).map(n=>({title:n.title,publisher:n.publisher,time:n.providerPublishTime?new Date(n.providerPublishTime*1000).toISOString().slice(0,10):null}));
+        row.newsCount=row.news.length;
+      }catch(e){row.news=[];}
+      row.score=calcResearchScore(row);
+      rows.push(row);
+    }
+    const type=inferAIType(key,model),li=lang==='zh'?'中文回答。':lang==='ja'?'日本語で回答。':'Reply in English.';
+    const prompt=`${li}你是股票研究助手。请基于下面自选股数据生成“每日研究首页”。不要给买卖建议。只返回 JSON：
+{"marketMood":"一句话市场/组合情绪","topFocus":["今天最值得关注的3只股票代码"],"items":[{"symbol":"","oneLine":"今天为什么涨/跌或为什么值得关注","risk":"当前最大风险","next":"下一件需要关注的事","tone":"BULLISH|BEARISH|NEUTRAL|WATCH","urgency":1}],"warnings":["组合层面的风险提醒"]}
+
+数据:
+${JSON.stringify(rows)}`;
+    const raw=await callAI(type,key,model||'gemini-2.5-flash',[{role:'user',content:prompt}],true);
+    let parsed=null;try{parsed=parseJSON(raw);if(parsed.parseError)parsed=null;}catch(e){}
+    return{ok:true,data:parsed||{marketMood:raw,items:[],warnings:[]},rows};
   }catch(e){return{error:e.message};}
 });

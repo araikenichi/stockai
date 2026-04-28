@@ -6,9 +6,10 @@ const allowedInvoke = new Set([
   'auto-start','auto-stop','save-history','load-history',
   'save-portfolio','load-portfolio','save-watchlist','load-watchlist',
   'batch-prices','earnings-data','portfolio-dashboard',
+  'company-research','news-brief','trade-review','score-watchlist','watchlist-daily-brief',
   'tv-connect','tv-state','tv-symbol','tv-set-pine','tv-compile',
   'smart-monitor-start','smart-monitor-stop','get-stream-context','ai-with-context',
-  'save-api-key','load-api-keys','export-report','watchlist-analysis'
+  'save-api-key','load-api-keys','delete-api-key','export-report','watchlist-analysis','debate-ai','load-symbol-history'
 ]);
 
 const allowedOn = new Set(['tv-status','auto-alert','agent-progress','stream-tick','smart-alert']);
