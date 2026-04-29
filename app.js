@@ -40,7 +40,7 @@ window.onload=async()=>{
   loadHistory();renderChatTabs();
   Q('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!Q('inp').value.trim())return;if(!enterReady){enterReady=true;Q('sndb').classList.add('ready');Q('ibx').classList.add('ready');}else{enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');doSend();}}else if(e.key!=='Enter'&&enterReady){enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');}});
   Q('inp').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
-  setTimeout(()=>{togP(activeAPIKey()?'dashboard':'settings');if(activeAPIKey())initDashboard();},300);
+  setTimeout(()=>{togP('dashboard');if(activeAPIKey())initDashboard();else showOnboarding();},300);
 };
 
 // ═══ Utils ═══
@@ -62,7 +62,7 @@ function activeModel(){
   if(keyDeepSeek)return Q('model-deepseek')?.value||'deepseek-chat';
   return model;
 }
-function keysPayload(){return{gemini:key||null,geminiModel:model,claude:keyClaude||null,openai:keyOpenAI||null,deepseek:keyDeepSeek||null,deepseekModel:Q('model-deepseek')?.value||'deepseek-chat'};}
+function keysPayload(){return{gemini:key||null,geminiModel:model,claude:keyClaude||null,openai:keyOpenAI||null,openaiModel:Q('model-openai')?.value||'gpt-5.5',deepseek:keyDeepSeek||null,deepseekModel:Q('model-deepseek')?.value||'deepseek-chat'};}
 function providerKey(p){return p==='gemini'?key:p==='claude'?keyClaude:p==='openai'?keyOpenAI:keyDeepSeek;}
 function setProviderKey(p,v){if(p==='gemini'){key=v;return;}if(p==='claude'){keyClaude=v;return;}if(p==='openai'){keyOpenAI=v;return;}if(p==='deepseek')keyDeepSeek=v;}
 
@@ -119,6 +119,50 @@ async function loadSecureKeys(){
 async function saveKey(p){const k=Q('key-'+p)?.value.trim()||'',m=Q('model-'+p)?.value||'';if(m)localStorage.setItem('sai_model_'+p,m);if(k){const r=await ipcRenderer.invoke('save-api-key',{provider:p,key:k,model:m});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}setProviderKey(p,k);if(p==='gemini')model=m||model;Q('key-'+p).value='';Q('key-'+p).placeholder='已安全保存，输入新 Key 可替换';}else if(m){const r=await ipcRenderer.invoke('save-api-key',{provider:p,key:providerKey(p),model:m});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}if(p==='gemini')model=m;}if(Q('dot-'+p))Q('dot-'+p).classList.toggle('on',!!providerKey(p));if(m&&p==='gemini'){model=m;localStorage.setItem('sai_model',m);}Q('api-'+p).classList.remove('show');if(activeAPIKey())setTimeout(()=>Q('pnl-settings').classList.remove('open'),300);}
 function saveMdl(m){model=m;localStorage.setItem('sai_model',m);}
 async function clearKey(p){const r=await ipcRenderer.invoke('delete-api-key',{provider:p});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}setProviderKey(p,'');if(Q('dot-'+p))Q('dot-'+p).classList.remove('on');if(Q('key-'+p)){Q('key-'+p).value='';Q('key-'+p).placeholder=p==='gemini'?'AIza...':'sk-...';}addMsg('ai','<div style="color:var(--tx2);font-size:11px">'+esc(p)+' のキーを削除しました</div>',1);}
+
+// ═══ Onboarding ═══
+let obProvider='',obClipTimer=null;
+const OB_URLS={gemini:'https://aistudio.google.com/app/apikey',claude:'https://console.anthropic.com/settings/keys',openai:'https://platform.openai.com/api-keys',deepseek:'https://platform.deepseek.com/api_keys'};
+const OB_PREFIX={gemini:'AIza',claude:'sk-ant-',openai:'sk-',deepseek:'sk-'};
+function showOnboarding(){const o=Q('onboarding');if(o)o.style.display='block';}
+function hideOnboarding(){const o=Q('onboarding');if(o)o.style.display='none';stopObClip();}
+function obSelect(p){
+  obProvider=p;
+  document.querySelectorAll('.ob-card').forEach(c=>c.classList.toggle('sel',c.dataset.p===p));
+  const step=Q('ob-step');step.classList.add('show');
+  Q('ob-dot2').classList.add('act');
+  const names={gemini:'Gemini',claude:'Claude',openai:'GPT-4o',deepseek:'DeepSeek'};
+  Q('ob-step-lbl').textContent='获取 '+names[p]+' API Key';
+  Q('ob-key-in').value='';Q('ob-key-in').placeholder='粘贴 '+(OB_PREFIX[p]||'')+'... Key';
+  Q('ob-key-err').style.display='none';Q('ob-save-btn').disabled=true;
+  startObClip();
+}
+async function obOpenKeyPage(){if(!obProvider)return;await ipcRenderer.invoke('open-external',OB_URLS[obProvider]);}
+function startObClip(){
+  stopObClip();
+  Q('ob-clip-dot').className='ob-clip-dot';Q('ob-clip-lbl').textContent='复制 Key 后将自动识别并填入…';
+  obClipTimer=setInterval(async()=>{
+    try{
+      const t=(await ipcRenderer.invoke('read-clipboard')||'').trim();
+      if(t&&obProvider&&t.startsWith(OB_PREFIX[obProvider])&&t.length>20){
+        Q('ob-key-in').value=t;Q('ob-clip-dot').className='ob-clip-dot found';
+        Q('ob-clip-lbl').textContent='✓ 已识别 Key，点击确认保存';
+        Q('ob-save-btn').disabled=false;stopObClip();
+      }
+    }catch(e){}
+  },800);
+}
+function stopObClip(){if(obClipTimer){clearInterval(obClipTimer);obClipTimer=null;}}
+function obCheckInput(){const v=(Q('ob-key-in').value||'').trim();Q('ob-save-btn').disabled=v.length<10;}
+async function obSave(){
+  const v=(Q('ob-key-in').value||'').trim();if(!v||!obProvider)return;
+  if(v.length<10){Q('ob-key-err').style.display='block';return;}
+  Q('ob-key-err').style.display='none';
+  const inp=Q('key-'+obProvider);if(inp)inp.value=v;
+  await saveKey(obProvider);
+  hideOnboarding();togP('dashboard');initDashboard();
+}
+function obSkip(){hideOnboarding();togP('settings');}
 
 // ═══ Multi-Chat ═══
 function newChat(){chats[activeChat].msgs=Q('msgs').innerHTML;chats[activeChat].hist=[...hist];const id=chatIdCounter++;chats.push({id,name:'Chat '+(id+1),hist:[],msgs:''});activeChat=chats.length-1;hist=[];lastHF=null;Q('msgs').innerHTML=welcomeHTML();renderChatTabs();}
@@ -376,7 +420,25 @@ function addPortRow(){portfolio.push({symbol:'',shares:'',avgCost:''});renderPor
 function updPort(i,k,v){portfolio[i][k]=v;savePort();}
 function delPort(i){portfolio.splice(i,1);renderPort();savePort();}
 async function savePort(){await ipcRenderer.invoke('save-portfolio',{portfolio});}
-async function loadHistory(){const r=await ipcRenderer.invoke('load-history');const list=Q('hist-list');if(!list)return;if(!r.ok||!r.history?.length){list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px" id="hist-empty">'+L[lang].lbl_history+'</div>';return;}list.innerHTML=r.history.slice(0,30).map(h=>{const sc=(h.signal==='BUY'||h.signal==='BULLISH')?'sb':(h.signal==='SELL'||h.signal==='BEARISH')?'ss':'sh';return'<div class="hist-item"><span class="hist-sym">'+esc(h.symbol)+'</span><span class="sig '+sc+'" style="font-size:9px;padding:2px 6px">'+(h.signal||'—')+'</span>'+(h.price?'<span style="font-size:10px;color:var(--tx2)">$'+sf(h.price)+'</span>':'')+'<span class="hist-date">'+new Date(h.timestamp).toLocaleDateString()+'</span></div>';}).join('');}
+function calcSignalStats(history){const withO=history.filter(h=>h.outcome7d&&h.price);if(!withO.length)return null;const results=withO.map(h=>{const sig=(h.signal||'').toUpperCase();const chg=h.outcome7d.change;const bull=sig.includes('BUY')||sig.includes('BULL');const bear=sig.includes('SELL')||sig.includes('BEAR');const hit=bull?chg>0:bear?chg<0:Math.abs(chg)<3;return{hit,chg:bull||!bear?chg:-chg};});const wins=results.filter(r=>r.hit).length;const avg=results.reduce((a,r)=>a+r.chg,0)/results.length;return{total:results.length,wins,winRate:Math.round(wins/results.length*100),avg:avg.toFixed(1)};}
+async function loadHistory(){
+  const list=Q('hist-list');if(!list)return;
+  list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px">確認中...</div>';
+  const r=await ipcRenderer.invoke('check-signal-outcomes');
+  if(!r.ok||!r.history?.length){list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px" id="hist-empty">'+L[lang].lbl_history+'</div>';return;}
+  const stats=calcSignalStats(r.history);
+  let html='';
+  if(stats){const sc=stats.winRate>=60?'var(--ac)':stats.winRate>=45?'var(--am)':'var(--rd)';html+='<div class="sig-stats"><span>AI予測精度</span><span style="color:'+sc+';font-weight:700">勝率 '+stats.winRate+'%</span><span style="color:var(--tx2)">'+stats.wins+'/'+stats.total+'件</span><span style="color:'+(parseFloat(stats.avg)>=0?'var(--ac)':'var(--rd)')+'">平均 '+(parseFloat(stats.avg)>=0?'+':'')+stats.avg+'%</span></div>';}
+  html+=r.history.slice(0,40).map(h=>{
+    const sc=(h.signal==='BUY'||h.signal==='BULLISH')?'sb':(h.signal==='SELL'||h.signal==='BEARISH')?'ss':'sh';
+    const sig=(h.signal||'').toUpperCase();const bull=sig.includes('BUY')||sig.includes('BULL');const bear=sig.includes('SELL')||sig.includes('BEAR');
+    let outHtml='';
+    if(h.outcome7d){const c=h.outcome7d.change;const hit=bull?c>0:bear?c<0:Math.abs(c)<3;outHtml='<span class="out-badge '+(hit?'out-hit':'out-miss')+'">'+(hit?'✓':'✗')+' '+(c>=0?'+':'')+c+'%</span>';}
+    else if(h.price){const age=(Date.now()-h.timestamp)/86400000;outHtml='<span class="out-badge out-pend">'+(age<7?Math.ceil(7-age)+'日後':'確認中')+'</span>';}
+    return'<div class="hist-item"><span class="hist-sym">'+esc(h.symbol)+'</span><span class="sig '+sc+'" style="font-size:9px;padding:2px 6px">'+(h.signal||'—')+'</span>'+(h.price?'<span style="font-size:10px;color:var(--tx2)">$'+sf(h.price)+'</span>':'')+outHtml+'<span class="hist-date">'+new Date(h.timestamp).toLocaleDateString()+'</span></div>';
+  }).join('');
+  list.innerHTML=html;
+}
 async function saveHistory(symbol,signal,score,summary,price){await ipcRenderer.invoke('save-history',{entry:{symbol,signal,score,summary:summary?.slice(0,200),price:price||null}});}
 
 

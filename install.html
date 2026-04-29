@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>StockAI — インストールガイド</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--ac:#10b981;--ac2:rgba(16,185,129,.12);--acb:rgba(16,185,129,.35);--bl:#3b82f6;--bl2:rgba(59,130,246,.1);--blb:rgba(59,130,246,.3);--am:#f59e0b;--am2:rgba(245,158,11,.12);--amb:rgba(245,158,11,.3);--rd:#ef4444;--pu:#8b5cf6;--cy:#06b6d4;--bg:#09090b;--bg2:#111113;--bg3:#1c1c1f;--bg4:#27272a;--brd:#27272a;--tx:#fafafa;--tx2:#a1a1aa;--tx3:#52525b;}
+html,body{background:var(--bg);color:var(--tx);font-family:'DM Sans',system-ui,sans-serif;font-size:15px;line-height:1.6;min-height:100vh}
+a{color:var(--ac);text-decoration:none}
+.wrap{max-width:680px;margin:0 auto;padding:0 24px}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(9,9,11,.88);backdrop-filter:blur(18px);border-bottom:1px solid var(--brd);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;color:var(--tx);text-decoration:none}
+.nav-logo-icon{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#10b981,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#04130d}
+.nav-sp{flex:1}
+.lang-sw{display:flex;background:var(--bg3);border:1px solid var(--brd);border-radius:8px;overflow:hidden}
+.lang-btn{background:none;border:none;color:var(--tx3);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer;font-family:inherit;transition:all .15s}
+.lang-btn.act{background:var(--ac);color:#000}
+
+/* Hero */
+.hero{padding:100px 24px 48px;text-align:center}
+.hero-icon{font-size:52px;margin-bottom:16px}
+.hero h1{font-size:28px;font-weight:800;margin-bottom:8px}
+.hero p{font-size:15px;color:var(--tx2);max-width:460px;margin:0 auto}
+
+/* Progress bar */
+.progress{display:flex;align-items:center;justify-content:center;gap:0;margin:36px auto;max-width:500px}
+.prog-step{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;flex:1}
+.prog-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;border:2px solid var(--brd);background:var(--bg3);color:var(--tx3);transition:all .3s;z-index:1}
+.prog-dot.done{background:var(--ac);border-color:var(--ac);color:#000}
+.prog-dot.active{background:var(--bg2);border-color:var(--ac);color:var(--ac)}
+.prog-label{font-size:10px;font-weight:600;color:var(--tx3);white-space:nowrap}
+.prog-label.active{color:var(--ac)}
+.prog-line{flex:1;height:2px;background:var(--brd);margin-top:-18px;position:relative;z-index:0}
+.prog-line.done{background:var(--ac)}
+
+/* Steps */
+.steps-wrap{padding:0 24px 80px}
+.step-card{background:var(--bg2);border:1px solid var(--brd);border-radius:16px;padding:24px;margin-bottom:16px;position:relative;overflow:hidden}
+.step-card.active{border-color:var(--acb);box-shadow:0 0 0 1px var(--acb)}
+.step-card.done-card{opacity:.6}
+.step-num{position:absolute;top:20px;right:20px;width:28px;height:28px;border-radius:50%;background:var(--bg3);border:1px solid var(--brd);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--tx3)}
+.step-num.done{background:var(--ac);border-color:var(--ac);color:#000}
+.step-icon{font-size:28px;margin-bottom:10px}
+.step-title{font-size:17px;font-weight:800;margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--tx2);line-height:1.7;margin-bottom:14px}
+.step-visual{background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:14px}
+
+/* Code block */
+.code-block{background:#09090b;border:1px solid var(--brd);border-radius:8px;padding:12px 14px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ac);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:border-color .2s}
+.code-block:hover{border-color:var(--acb)}
+.code-copy{font-size:10px;color:var(--tx3);white-space:nowrap;font-family:'DM Sans',sans-serif;font-weight:600}
+.code-copy.copied{color:var(--ac)}
+
+/* Buttons */
+.btn-primary{background:var(--ac);color:#000;border:none;border-radius:10px;padding:12px 26px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{opacity:.88}
+.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--brd);border-radius:10px;padding:11px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s}
+.btn-ghost:hover{border-color:var(--tx2);color:var(--tx)}
+
+/* Provider cards */
+.prov-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.prov-btn{background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .18s;text-decoration:none;color:var(--tx)}
+.prov-btn:hover{border-color:var(--acb);background:var(--ac2)}
+.prov-icon{font-size:16px;width:32px;height:32px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.prov-name{font-size:13px;font-weight:700}
+.prov-tag{font-size:9px;color:var(--tx3);font-family:'IBM Plex Mono',monospace}
+
+/* Warning box */
+.warn-box{background:var(--am2);border:1px solid var(--amb);border-radius:10px;padding:12px 14px}
+.warn-title{font-size:10px;font-weight:700;color:var(--am);margin-bottom:5px;letter-spacing:.4px}
+.warn-desc{font-size:12px;color:var(--tx2);line-height:1.7}
+
+/* Success */
+.success-box{background:var(--ac2);border:1px solid var(--acb);border-radius:12px;padding:20px;text-align:center}
+.success-icon{font-size:40px;margin-bottom:10px}
+.success-title{font-size:18px;font-weight:800;margin-bottom:6px}
+.success-desc{font-size:13px;color:var(--tx2);line-height:1.7;margin-bottom:16px}
+
+/* Tips */
+.tips-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.tip{background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:10px 12px}
+.tip-icon{font-size:14px;margin-bottom:4px}
+.tip-title{font-size:11px;font-weight:700;margin-bottom:2px}
+.tip-desc{font-size:10px;color:var(--tx2);line-height:1.5}
+
+@media(max-width:500px){.prov-grid{grid-template-columns:1fr}.tips-grid{grid-template-columns:1fr}.progress{gap:0}.prog-label{font-size:8px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="landing.html">
+    <div class="nav-logo-icon">S</div>
+    StockAI
+  </a>
+  <div class="nav-sp"></div>
+  <div class="lang-sw">
+    <button class="lang-btn" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('ja')">日本語</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="hero-icon">🎉</div>
+    <h1 data-i18n="hero_h">下载完成！开始安装</h1>
+    <p data-i18n="hero_p">按照下面 4 个步骤，5 分钟内完成安装并开始你的第一次 AI 股票研究。</p>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="wrap">
+  <div class="progress">
+    <div class="prog-step">
+      <div class="prog-dot active" id="pd1">1</div>
+      <div class="prog-label active" data-i18n="p1">安装</div>
+    </div>
+    <div class="prog-line" id="pl1"></div>
+    <div class="prog-step">
+      <div class="prog-dot" id="pd2">2</div>
+      <div class="prog-label" id="pl2-lbl" data-i18n="p2">开启权限</div>
+    </div>
+    <div class="prog-line" id="pl2"></div>
+    <div class="prog-step">
+      <div class="prog-dot" id="pd3">3</div>
+      <div class="prog-label" id="pl3-lbl" data-i18n="p3">API Key</div>
+    </div>
+    <div class="prog-line" id="pl3"></div>
+    <div class="prog-step">
+      <div class="prog-dot" id="pd4">4</div>
+      <div class="prog-label" id="pl4-lbl" data-i18n="p4">完成</div>
+    </div>
+  </div>
+</div>
+
+<!-- Steps -->
+<div class="steps-wrap">
+  <div class="wrap">
+
+    <!-- Step 1: Install -->
+    <div class="step-card active" id="sc1">
+      <div class="step-num" id="sn1">1</div>
+      <div class="step-icon">📦</div>
+      <div class="step-title" data-i18n="s1_title">打开 DMG，拖入「应用程序」</div>
+      <div class="step-desc" data-i18n="s1_desc">双击下载的 .dmg 文件，将 StockAI 图标拖到「应用程序」文件夹中。</div>
+      <div class="step-visual">
+        <div style="display:flex;align-items:center;justify-content:center;gap:20px;padding:10px 0">
+          <div style="text-align:center">
+            <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#10b981,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#04130d;margin:0 auto 6px">S</div>
+            <div style="font-size:10px;color:var(--tx2)">StockAI</div>
+          </div>
+          <div style="font-size:24px;color:var(--ac)">→</div>
+          <div style="text-align:center">
+            <div style="width:56px;height:56px;border-radius:14px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 6px">📁</div>
+            <div style="font-size:10px;color:var(--tx2)" data-i18n="applications">应用程序</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="nextStep(1)" data-i18n="s1_btn">拖进去了 →</button>
+    </div>
+
+    <!-- Step 2: Gatekeeper -->
+    <div class="step-card done-card" id="sc2">
+      <div class="step-num" id="sn2">2</div>
+      <div class="step-icon">🔓</div>
+      <div class="step-title" data-i18n="s2_title">绕过 macOS 安全限制</div>
+      <div class="step-desc" data-i18n="s2_desc">首次打开会提示「已损坏，无法打开」。这是 macOS 对未签名 App 的正常拦截，不是病毒。在终端运行以下命令解除：</div>
+      <div class="code-block" onclick="copyCmd('sudo xattr -cr /Applications/StockAI.app','copy1')">
+        <span>sudo xattr -cr /Applications/StockAI.app</span>
+        <span class="code-copy" id="copy1" data-i18n="copy_btn">点击复制</span>
+      </div>
+      <div style="font-size:12px;color:var(--tx3);margin:8px 0 14px;line-height:1.6" data-i18n="s2_hint">打开「终端」(Launchpad → 其他 → 终端)，粘贴命令并按回车。完成后重新打开 StockAI。</div>
+      <button class="btn-primary" onclick="nextStep(2)" data-i18n="s2_btn">已解除，可以打开了 →</button>
+    </div>
+
+    <!-- Step 3: API Key -->
+    <div class="step-card done-card" id="sc3">
+      <div class="step-num" id="sn3">3</div>
+      <div class="step-icon">🔑</div>
+      <div class="step-title" data-i18n="s3_title">获取 API Key</div>
+      <div class="step-desc" data-i18n="s3_desc">选择一个 AI 提供商，点击按钮跳转到官方申请页面。推荐新手先用 Gemini（免费额度充足）。</div>
+      <div class="prov-grid">
+        <a class="prov-btn" href="https://aistudio.google.com/app/apikey" target="_blank">
+          <div class="prov-icon">✦</div>
+          <div><div class="prov-name">Gemini</div><div class="prov-tag" data-i18n="prov_gemini">免费 · 推荐新手</div></div>
+        </a>
+        <a class="prov-btn" href="https://console.anthropic.com/settings/keys" target="_blank">
+          <div class="prov-icon">◆</div>
+          <div><div class="prov-name">Claude</div><div class="prov-tag">Anthropic</div></div>
+        </a>
+        <a class="prov-btn" href="https://platform.openai.com/api-keys" target="_blank">
+          <div class="prov-icon">○</div>
+          <div><div class="prov-name">GPT-5.5</div><div class="prov-tag">OpenAI</div></div>
+        </a>
+        <a class="prov-btn" href="https://platform.deepseek.com/api_keys" target="_blank">
+          <div class="prov-icon">⬡</div>
+          <div><div class="prov-name">DeepSeek</div><div class="prov-tag" data-i18n="prov_ds">R1 · 最安値</div></div>
+        </a>
+      </div>
+      <div class="warn-box" style="margin-bottom:14px">
+        <div class="warn-title" data-i18n="tip_title">💡 自动识别 Key</div>
+        <div class="warn-desc" data-i18n="tip_desc">复制 API Key 后切回到 StockAI，App 会自动检测并填入，无需手动粘贴。</div>
+      </div>
+      <button class="btn-primary" onclick="nextStep(3)" data-i18n="s3_btn">已复制 Key，下一步 →</button>
+    </div>
+
+    <!-- Step 4: Done -->
+    <div class="step-card done-card" id="sc4">
+      <div class="step-num" id="sn4">4</div>
+      <div class="success-box">
+        <div class="success-icon">🚀</div>
+        <div class="success-title" data-i18n="done_title">准备好了！</div>
+        <div class="success-desc" data-i18n="done_desc">StockAI 已完成配置。打开 TradingView，点击「图表分析」或「快速分析」开始你的第一次 AI 研究。</div>
+        <div class="tips-grid">
+          <div class="tip"><div class="tip-icon">📸</div><div class="tip-title" data-i18n="tip1t">截屏分析</div><div class="tip-desc" data-i18n="tip1d">点击截屏按钮，AI 直接读取当前图表。</div></div>
+          <div class="tip"><div class="tip-icon">⚡</div><div class="tip-title" data-i18n="tip2t">快速分析</div><div class="tip-desc" data-i18n="tip2d">输入代码回车，快速获得方向判断。</div></div>
+          <div class="tip"><div class="tip-icon">🤖</div><div class="tip-title" data-i18n="tip3t">深度研究</div><div class="tip-desc" data-i18n="tip3d">6 个 AI 代理同时分析，给出综合结论。</div></div>
+          <div class="tip"><div class="tip-icon">📡</div><div class="tip-title" data-i18n="tip4t">实时监控</div><div class="tip-desc" data-i18n="tip4d">自动检测异常波动并触发警报。</div></div>
+        </div>
+        <div style="margin-top:20px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <a href="landing.html" class="btn-ghost" data-i18n="back_btn">← 返回主页</a>
+          <a href="https://github.com/araikenichi/stockai" target="_blank" class="btn-ghost" data-i18n="github_btn">GitHub</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let curStep=1;
+
+const T={
+  zh:{
+    hero_h:'下载完成！开始安装',hero_p:'按照下面 4 个步骤，5 分钟内完成安装并开始你的第一次 AI 股票研究。',
+    p1:'安装',p2:'开启权限',p3:'API Key',p4:'完成',
+    s1_title:'打开 DMG，拖入「应用程序」',s1_desc:'双击下载的 .dmg 文件，将 StockAI 图标拖到「应用程序」文件夹中。',applications:'应用程序',s1_btn:'拖进去了 →',
+    s2_title:'绕过 macOS 安全限制',s2_desc:'首次打开会提示「已损坏，无法打开」。这是 macOS 对未签名 App 的正常拦截，不是病毒。在终端运行以下命令解除：',s2_hint:'打开「终端」(Launchpad → 其他 → 终端)，粘贴命令并按回车。完成后重新打开 StockAI。',s2_btn:'已解除，可以打开了 →',
+    s3_title:'获取 API Key',s3_desc:'选择一个 AI 提供商，点击按钮跳转到官方申请页面。推荐新手先用 Gemini（免费额度充足）。',prov_gemini:'免费 · 推荐新手',prov_ds:'R1 · 极低成本',tip_title:'💡 自动识别 Key',tip_desc:'复制 API Key 后切回到 StockAI，App 会自动检测并填入，无需手动粘贴。',s3_btn:'已复制 Key，下一步 →',
+    done_title:'准备好了！',done_desc:'StockAI 已完成配置。打开 TradingView，点击「图表分析」或「快速分析」开始你的第一次 AI 研究。',
+    tip1t:'截屏分析',tip1d:'点击截屏按钮，AI 直接读取当前图表。',tip2t:'快速分析',tip2d:'输入代码回车，快速获得方向判断。',tip3t:'深度研究',tip3d:'6 个 AI 代理同时分析，给出综合结论。',tip4t:'实时监控',tip4d:'自动检测异常波动并触发警报。',
+    copy_btn:'点击复制',back_btn:'← 返回主页',github_btn:'GitHub'
+  },
+  en:{
+    hero_h:'Download complete! Let\'s install.',hero_p:'Follow these 4 steps to get StockAI running in under 5 minutes.',
+    p1:'Install',p2:'Security',p3:'API Key',p4:'Done',
+    s1_title:'Open DMG → drag to Applications',s1_desc:'Double-click the downloaded .dmg file, then drag the StockAI icon into your Applications folder.',applications:'Applications',s1_btn:'Done, it\'s in Applications →',
+    s2_title:'Bypass macOS security',s2_desc:'On first launch macOS shows "damaged, can\'t be opened." This is a normal Gatekeeper warning for unsigned apps, not a virus. Run this command in Terminal to fix it:',s2_hint:'Open Terminal (Launchpad → Other → Terminal), paste the command, and press Enter. Then reopen StockAI.',s2_btn:'Fixed, StockAI opens now →',
+    s3_title:'Get your API Key',s3_desc:'Choose an AI provider and click to open their key page. If you\'re new, start with Gemini — it has a generous free tier.',prov_gemini:'Free · Recommended',prov_ds:'R1 · Lowest cost',tip_title:'💡 Auto-detect Key',tip_desc:'After copying your API Key, switch back to StockAI. The app auto-detects it from your clipboard — no manual paste needed.',s3_btn:'Got my Key, next →',
+    done_title:'You\'re all set!',done_desc:'StockAI is ready. Open TradingView, then click "Chart Analysis" or "Quick Analysis" to run your first AI research.',
+    tip1t:'Screenshot',tip1d:'Click the screenshot button and AI reads your current chart.',tip2t:'Quick Analysis',tip2d:'Enter a ticker and press Enter for a fast directional read.',tip3t:'Deep Research',tip3d:'6 AI agents analyze in parallel and deliver a consensus.',tip4t:'Live Monitor',tip4d:'Auto-detects abnormal moves and fires alerts.',
+    copy_btn:'Click to copy',back_btn:'← Back to home',github_btn:'GitHub'
+  },
+  ja:{
+    hero_h:'ダウンロード完了！インストール開始',hero_p:'以下の 4 ステップで 5 分以内にセットアップ完了。最初の AI 株式リサーチを始めましょう。',
+    p1:'インストール',p2:'セキュリティ',p3:'API キー',p4:'完了',
+    s1_title:'DMG を開いて「アプリケーション」へドラッグ',s1_desc:'ダウンロードした .dmg ファイルをダブルクリックし、StockAI アイコンをアプリケーションフォルダへドラッグしてください。',applications:'アプリケーション',s1_btn:'ドラッグ完了 →',
+    s2_title:'macOS のセキュリティ制限を解除',s2_desc:'初回起動時に「壊れているため開けません」と表示される場合があります。未署名アプリに対する macOS の通常の動作であり、ウイルスではありません。ターミナルで以下のコマンドを実行してください：',s2_hint:'「ターミナル」を開き（Launchpad → その他 → ターミナル）、コマンドを貼り付けて Enter を押してください。完了後、StockAI を再度開いてください。',s2_btn:'解除完了、開けました →',
+    s3_title:'API キーを取得',s3_desc:'AI プロバイダーを選んでクリックすると、公式のキー取得ページが開きます。初めての方は Gemini がおすすめ（無料枠が充実）。',prov_gemini:'無料 · 初心者におすすめ',prov_ds:'R1 · 最安値',tip_title:'💡 キーを自動認識',tip_desc:'API キーをコピーして StockAI に戻ると、クリップボードから自動検出して入力欄に自動入力されます。',s3_btn:'キーをコピーしました →',
+    done_title:'準備完了！',done_desc:'StockAI のセットアップが完了しました。TradingView を開いて「チャート分析」または「クイック分析」をクリックし、最初の AI リサーチを始めましょう。',
+    tip1t:'スクリーンショット',tip1d:'ボタンをクリックすると AI が現在のチャートを読み取ります。',tip2t:'クイック分析',tip2d:'銘柄コードを入力して Enter で素早く方向感を確認。',tip3t:'詳細分析',tip3d:'6 つの AI エージェントが同時分析し総合結論を提示。',tip4t:'リアルタイム監視',tip4d:'異常変動を自動検知してアラートを送信。',
+    copy_btn:'クリックしてコピー',back_btn:'← ホームに戻る',github_btn:'GitHub'
+  }
+};
+
+let curLang=localStorage.getItem('sai_web_lang')||'zh';
+
+function setLang(l){
+  curLang=l;localStorage.setItem('sai_web_lang',l);
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k=el.dataset.i18n;if(T[l]&&T[l][k]!==undefined)el.innerHTML=T[l][k];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('act',b.textContent.trim()===(l==='zh'?'中文':l==='en'?'EN':'日本語')));
+  document.documentElement.lang=l==='ja'?'ja':l==='en'?'en':'zh';
+}
+
+function nextStep(n){
+  // Mark current done
+  document.getElementById('sc'+(n)).classList.remove('active');
+  document.getElementById('sc'+(n)).classList.add('done-card');
+  document.getElementById('sn'+n).classList.add('done');
+  document.getElementById('sn'+n).innerHTML='✓';
+  document.getElementById('pd'+n).classList.remove('active');
+  document.getElementById('pd'+n).classList.add('done');
+  document.getElementById('pd'+n).innerHTML='✓';
+  if(n<4)document.getElementById('pl'+n).classList.add('done');
+  // Activate next
+  const next=n+1;
+  document.getElementById('sc'+next).classList.remove('done-card');
+  document.getElementById('sc'+next).classList.add('active');
+  document.getElementById('pd'+next).classList.add('active');
+  // Scroll to next
+  setTimeout(()=>document.getElementById('sc'+next).scrollIntoView({behavior:'smooth',block:'start'}),100);
+  curStep=next;
+}
+
+function copyCmd(cmd,id){
+  navigator.clipboard.writeText(cmd).then(()=>{
+    const el=document.getElementById(id);
+    const orig=el.textContent;
+    el.textContent='✓ '+T[curLang].copy_btn.replace('点击','').replace('Click to ','').replace('クリックして','')+'...';
+    el.classList.add('copied');
+    setTimeout(()=>{el.textContent=orig;el.classList.remove('copied');},2000);
+  });
+}
+
+setLang(curLang);
+</script>
+</body>
+</html>

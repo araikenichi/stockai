@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>StockAI — AI 股票研究助手</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--ac:#10b981;--ac2:rgba(16,185,129,.12);--acb:rgba(16,185,129,.35);--bl:#3b82f6;--bl2:rgba(59,130,246,.1);--rd:#ef4444;--am:#f59e0b;--pu:#8b5cf6;--cy:#06b6d4;--bg:#09090b;--bg2:#111113;--bg3:#1c1c1f;--bg4:#27272a;--brd:#27272a;--tx:#fafafa;--tx2:#a1a1aa;--tx3:#52525b;}
+html,body{background:var(--bg);color:var(--tx);font-family:'DM Sans',system-ui,sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden}
+a{color:var(--ac);text-decoration:none}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(9,9,11,.88);backdrop-filter:blur(18px);border-bottom:1px solid var(--brd);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px}
+.nav-logo{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;color:var(--tx)}
+.nav-logo-icon{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#10b981,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#04130d;flex-shrink:0}
+.nav-badge{font-size:9px;background:var(--ac2);color:var(--ac);border:1px solid var(--acb);border-radius:999px;padding:2px 8px;font-family:'IBM Plex Mono',monospace}
+.nav-sp{flex:1}
+.lang-sw{display:flex;background:var(--bg3);border:1px solid var(--brd);border-radius:8px;overflow:hidden}
+.lang-btn{background:none;border:none;color:var(--tx3);font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer;font-family:inherit;transition:all .15s}
+.lang-btn.act{background:var(--ac);color:#000}
+.nav-dl{background:var(--ac);color:#000;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;white-space:nowrap}
+.nav-dl:hover{opacity:.85}
+
+/* Hero */
+.hero{padding:140px 24px 80px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(16,185,129,.08) 0%,transparent 70%);pointer-events:none}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;background:var(--ac2);border:1px solid var(--acb);border-radius:999px;padding:5px 14px;font-size:11px;font-weight:600;color:var(--ac);font-family:'IBM Plex Mono',monospace;margin-bottom:22px;letter-spacing:.4px}
+.hero-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--ac);flex-shrink:0;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+.hero h1{font-size:clamp(36px,6vw,64px);font-weight:800;line-height:1.1;letter-spacing:-.5px;margin-bottom:20px}
+.hero h1 span{background:linear-gradient(135deg,#10b981,#0ea5e9);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:17px;color:var(--tx2);max-width:560px;margin:0 auto 36px;line-height:1.7}
+.hero-ctas{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.btn-primary{background:var(--ac);color:#000;border:none;border-radius:10px;padding:13px 28px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary:hover{opacity:.88;transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--brd);border-radius:10px;padding:13px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;display:inline-flex;align-items:center;gap:6px}
+.btn-ghost:hover{border-color:var(--tx2);color:var(--tx)}
+.hero-note{font-size:11px;color:var(--tx3);margin-bottom:60px}
+
+/* Mockup */
+.mockup{background:var(--bg2);border:1px solid var(--brd);border-radius:18px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.6),0 0 60px rgba(16,185,129,.06);max-width:680px;margin:0 auto}
+.mock-bar{background:var(--bg3);border-bottom:1px solid var(--brd);padding:10px 14px;display:flex;align-items:center;gap:8px}
+.mock-dots{display:flex;gap:5px}.mock-dot{width:10px;height:10px;border-radius:50%}
+.mock-body{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mock-card{background:var(--bg3);border:1px solid var(--brd);border-radius:10px;padding:12px}
+.mock-card-title{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--tx3);margin-bottom:8px;font-family:'IBM Plex Mono',monospace}
+.mock-val{font-size:18px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--ac)}
+.mock-chg{font-size:10px;color:var(--ac);font-family:'IBM Plex Mono',monospace}
+.mock-sig{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;margin-top:6px;background:var(--ac2);color:var(--ac);border:1px solid var(--acb)}
+.mock-agents{display:flex;gap:3px;margin-top:6px}.mock-ag{flex:1;padding:3px 4px;border-radius:4px;text-align:center;font-size:7px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.mock-ag.done{background:var(--ac2);color:var(--ac);border:1px solid var(--acb)}.mock-ag.run{background:rgba(245,158,11,.12);color:var(--am);border:1px solid rgba(245,158,11,.3)}
+.mock-chat{grid-column:1/-1;display:flex;flex-direction:column;gap:6px}
+.mock-msg{background:var(--bg4);border-radius:8px;padding:8px 10px;font-size:11px;color:var(--tx2);line-height:1.5}
+.mock-msg.ai{background:var(--ac2);border:1px solid var(--acb);color:var(--tx)}
+
+/* Features */
+.features{padding:80px 24px}
+.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ac);font-family:'IBM Plex Mono',monospace;margin-bottom:10px;text-align:center}
+.section-title{font-size:clamp(26px,4vw,40px);font-weight:800;text-align:center;line-height:1.2;margin-bottom:12px;letter-spacing:-.3px}
+.section-sub{font-size:15px;color:var(--tx2);text-align:center;max-width:500px;margin:0 auto 52px;line-height:1.6}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.feat-card{background:var(--bg2);border:1px solid var(--brd);border-radius:14px;padding:22px;transition:border-color .2s,transform .2s}
+.feat-card:hover{border-color:var(--bg4);transform:translateY(-2px)}
+.feat-icon{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px}
+.feat-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.feat-desc{font-size:13px;color:var(--tx2);line-height:1.6}
+.feat-tag{display:inline-flex;margin-top:10px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:8px;font-family:'IBM Plex Mono',monospace}
+
+/* How */
+.how{padding:60px 24px 80px;background:var(--bg2);border-top:1px solid var(--brd);border-bottom:1px solid var(--brd)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:800px;margin:0 auto}
+.step{text-align:center;padding:20px 16px}
+.step-num{width:44px;height:44px;border-radius:50%;background:var(--ac2);border:1.5px solid var(--acb);color:var(--ac);font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-family:'IBM Plex Mono',monospace}
+.step-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.step-desc{font-size:12px;color:var(--tx2);line-height:1.6}
+
+/* Providers */
+.providers{padding:60px 24px}
+.prov-grid{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:36px}
+.prov-card{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:16px 22px;display:flex;align-items:center;gap:10px;min-width:160px}
+.prov-icon{font-size:20px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:9px;background:var(--bg3)}
+.prov-name{font-size:14px;font-weight:700}
+.prov-tag{font-size:9px;color:var(--tx3);font-family:'IBM Plex Mono',monospace}
+
+/* CTA */
+.cta-section{padding:80px 24px;text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 50% 100%,rgba(16,185,129,.07) 0%,transparent 70%);pointer-events:none}
+.cta-section h2{font-size:clamp(28px,4vw,44px);font-weight:800;margin-bottom:14px;letter-spacing:-.3px}
+.cta-section p{font-size:15px;color:var(--tx2);margin-bottom:32px;line-height:1.7}
+.cta-note{font-size:11px;color:var(--tx3);margin-top:14px}
+
+/* Footer */
+footer{border-top:1px solid var(--brd);padding:28px 24px;color:var(--tx3);font-size:11px;font-family:'IBM Plex Mono',monospace}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;max-width:960px;margin:0 auto}
+
+@media(max-width:600px){.steps{grid-template-columns:1fr}.feat-grid{grid-template-columns:1fr}.mock-body{grid-template-columns:1fr}.lang-btn{padding:5px 7px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">S</div>
+    StockAI
+  </div>
+  <span class="nav-badge">AI RESEARCH</span>
+  <div class="nav-sp"></div>
+  <div class="lang-sw">
+    <button class="lang-btn" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('ja')">日本語</button>
+  </div>
+  <button class="nav-dl" onclick="dlDetect()" data-i18n="nav_dl">免费下载</button>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow" data-i18n="eyebrow">适合个人投资者的 AI 分析工具</div>
+    <h1 data-i18n="h1">股票研究，<br><span>像 Cursor 一样智能</span></h1>
+    <p class="hero-sub" data-i18n="hero_sub">截屏 + 聊天，让 AI 分析你的图表、宏观数据、财报和新闻。多代理协同，给出结构化研究结论。</p>
+    <div class="hero-ctas">
+      <button class="btn-primary" id="download" onclick="dlDetect()">⬇ &nbsp;<span data-i18n="dl_btn">下载 macOS 版本</span></button>
+      <a class="btn-ghost" href="https://github.com/araikenichi/stockai/releases" target="_blank"><span data-i18n="all_ver">所有版本</span></a>
+    </div>
+    <p class="hero-note" data-i18n="hero_note">自带 API Key 使用 · 数据不上传 · 完全本地运行</p>
+    <div class="mockup">
+      <div class="mock-bar">
+        <div class="mock-dots"><div class="mock-dot" style="background:#ff5f57"></div><div class="mock-dot" style="background:#ffbd2e"></div><div class="mock-dot" style="background:#28c840"></div></div>
+        <span style="font-size:10px;color:var(--tx3);margin-left:8px;font-family:'IBM Plex Mono',monospace">StockAI · NVDA</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-card">
+          <div class="mock-card-title" data-i18n="mock_quick">快速分析</div>
+          <div class="mock-val">NVDA</div>
+          <div class="mock-chg">+3.2% · $875.40</div>
+          <div class="mock-sig" data-i18n="mock_sig">偏强 ▲ 82分</div>
+        </div>
+        <div class="mock-card">
+          <div class="mock-card-title" data-i18n="mock_consensus">多代理共识</div>
+          <div class="mock-agents">
+            <div class="mock-ag done">QUANT</div><div class="mock-ag done">PORT</div><div class="mock-ag run">RISK</div><div class="mock-ag done">CEO</div>
+          </div>
+          <div style="font-size:10px;color:var(--tx2);margin-top:8px;line-height:1.5" data-i18n="mock_analyzing">AI正在分析财报、宏观环境和技术指标…</div>
+        </div>
+        <div class="mock-chat">
+          <div class="mock-msg" data-i18n="mock_q">NVDA 最新季度的毛利率和自由现金流怎么样？</div>
+          <div class="mock-msg ai" data-i18n="mock_a">毛利率达 78.4%，同比+12pp，自由现金流 $148 亿。核心驱动是数据中心 GPU 需求持续爆发，Blackwell 架构出货超预期。短期需关注出口管制风险…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="wrap">
+    <div class="section-label" data-i18n="feat_label">功能亮点</div>
+    <h2 class="section-title" data-i18n="feat_title">一个工具，完整的研究流程</h2>
+    <p class="section-sub" data-i18n="feat_sub">从截屏到多代理分析，再到实时监控和组合管理，全流程 AI 辅助。</p>
+    <div class="feat-grid">
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(16,185,129,.1)">📸</div><div class="feat-title" data-i18n="f1t">截屏分析</div><div class="feat-desc" data-i18n="f1d">截取 TradingView 图表，AI 直接读懂蜡烛形态、均线、RSI、MACD，输出结构化判断。</div><span class="feat-tag" style="background:var(--ac2);color:var(--ac)">VISION AI</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(139,92,246,.1)">🤖</div><div class="feat-title" data-i18n="f2t">多代理协同</div><div class="feat-desc" data-i18n="f2d">6 个专业 AI 代理（量化、基本面、风控、执行、CEO、质检）同时分析，给出综合结论。</div><span class="feat-tag" style="background:var(--pu2,rgba(139,92,246,.12));color:var(--pu)">MULTI-AGENT</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(6,182,212,.1)">📡</div><div class="feat-title" data-i18n="f3t">实时监控</div><div class="feat-desc" data-i18n="f3d">每 5 秒监听价格、RSI、MACD 变动，异常波动自动触发 AI 警报并截屏分析。</div><span class="feat-tag" style="background:rgba(6,182,212,.12);color:var(--cy)">LIVE</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(59,130,246,.1)">🌐</div><div class="feat-title" data-i18n="f4t">宏观数据集成</div><div class="feat-desc" data-i18n="f4d">实时显示 DXY、10Y 美债、黄金、原油，以及 FOMC、CPI 等经济日历事件。</div><span class="feat-tag" style="background:var(--bl2);color:var(--bl)">MACRO</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(245,158,11,.1)">📊</div><div class="feat-title" data-i18n="f5t">信号实绩追踪</div><div class="feat-desc" data-i18n="f5d">记录 AI 信号时的价格，7天、30天后自动比较结果，计算胜率和平均收益。</div><span class="feat-tag" style="background:rgba(245,158,11,.12);color:var(--am)">TRACK</span></div>
+      <div class="feat-card"><div class="feat-icon" style="background:rgba(239,68,68,.1)">🧑‍💼</div><div class="feat-title" data-i18n="f6t">内部人交易追踪</div><div class="feat-desc" data-i18n="f6d">显示高管买卖动向，自动纳入分析，判断公司内部对前景的真实态度。</div><span class="feat-tag" style="background:rgba(239,68,68,.1);color:var(--rd)">INSIDER</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- How -->
+<section class="how">
+  <div class="wrap">
+    <div class="section-label" data-i18n="how_label">使用流程</div>
+    <h2 class="section-title" style="margin-bottom:40px" data-i18n="how_title">三步开始 AI 研究</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-title" data-i18n="s1t">配置 API Key</div><div class="step-desc" data-i18n="s1d">选择 Gemini、Claude、GPT-5.5 或 DeepSeek，一键跳转获取页面，自动识别复制的 Key。</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-title" data-i18n="s2t">连接 TradingView</div><div class="step-desc" data-i18n="s2d">打开浏览器中的 TradingView，StockAI 自动读取图表数据、价格和技术指标。</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-title" data-i18n="s3t">截屏 + 对话分析</div><div class="step-desc" data-i18n="s3d">点击截屏或输入问题，AI 综合图表、宏观、财报和新闻，给出结构化研究结论。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Providers -->
+<section class="providers">
+  <div class="wrap">
+    <div class="section-label" data-i18n="prov_label">支持的 AI 提供商</div>
+    <h2 class="section-title" data-i18n="prov_title">自带 Key，零平台费用</h2>
+    <p class="section-sub" style="margin-bottom:0" data-i18n="prov_sub">使用你自己的 API Key，数据完全本地处理，StockAI 不收取任何 AI 调用费用。</p>
+    <div class="prov-grid">
+      <div class="prov-card"><div class="prov-icon">✦</div><div><div class="prov-name">Gemini</div><div class="prov-tag" data-i18n="prov_gemini">免费额度充足</div></div></div>
+      <div class="prov-card"><div class="prov-icon">◆</div><div><div class="prov-name">Claude</div><div class="prov-tag" data-i18n="prov_claude">Anthropic · 最强分析</div></div></div>
+      <div class="prov-card"><div class="prov-icon">○</div><div><div class="prov-name">GPT-5.5</div><div class="prov-tag" data-i18n="prov_openai">OpenAI · 生态成熟</div></div></div>
+      <div class="prov-card"><div class="prov-icon">⬡</div><div><div class="prov-name">DeepSeek</div><div class="prov-tag" data-i18n="prov_ds">R1 推理 · 极低成本</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="wrap">
+    <h2 data-i18n="cta_h">准备好开始了吗？</h2>
+    <p data-i18n="cta_p">免费下载，5 分钟内完成配置，开始你的第一次 AI 股票研究。</p>
+    <button class="btn-primary" style="font-size:16px;padding:15px 36px" onclick="dlDetect()">⬇ &nbsp;<span data-i18n="dl_btn">下载 macOS 版本</span></button>
+    <p class="cta-note" data-i18n="cta_note">需要 macOS 12+  ·  支持 Apple Silicon 和 Intel  ·  数据完全本地运行</p>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <span data-i18n="footer_copy">© 2025 StockAI · 内容仅供研究参考，不构成投资建议</span>
+    <span>Built with ♥ for individual investors</span>
+  </div>
+</footer>
+
+<!-- Download picker -->
+<div id="dl-picker" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:#18181b;border:1px solid #27272a;border-radius:18px;padding:28px 28px 22px;max-width:380px;width:92%;text-align:center">
+    <div style="font-size:22px;margin-bottom:8px">⬇</div>
+    <div style="font-size:16px;font-weight:800;margin-bottom:5px" data-i18n="dl_pick_title">选择你的 Mac 版本</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-bottom:20px;line-height:1.6" data-i18n="dl_pick_sub">2020年以后的 Mac（M1/M2/M3/M4）→ Apple Silicon<br>旧款 Intel Mac → Intel</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+      <a href="https://github.com/araikenichi/stockai/releases/latest/download/StockAI-2.0.1-arm64.dmg"
+         style="display:block;background:#10b981;color:#04130d;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:700;text-decoration:none"
+         onclick="setTimeout(()=>window.open('install.html','_blank'),1000)">
+        Apple Silicon &nbsp;(M1 / M2 / M3 / M4)
+      </a>
+      <a href="https://github.com/araikenichi/stockai/releases/latest/download/StockAI-2.0.1-x64.dmg"
+         style="display:block;background:#27272a;color:#fafafa;border-radius:10px;padding:12px 20px;font-size:14px;font-weight:700;text-decoration:none"
+         onclick="setTimeout(()=>window.open('install.html','_blank'),1000)">
+        Intel Mac &nbsp;(2019 <span data-i18n="dl_intel_note">以前</span>)
+      </a>
+    </div>
+    <div style="background:#1c1a10;border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:12px 14px;text-align:left">
+      <div style="font-size:10px;font-weight:700;color:#f59e0b;margin-bottom:6px;letter-spacing:.4px" data-i18n="gk_title">⚠ 开始前请阅读</div>
+      <div style="font-size:11px;color:#a1a1aa;line-height:1.7" data-i18n="gk_desc">macOS 会提示「已损坏，无法打开」。这是正常安全警告，解决方法：</div>
+      <div style="background:#09090b;border-radius:6px;padding:8px 10px;margin:8px 0;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#10b981;text-align:left;cursor:pointer;position:relative" onclick="copyGKCmd()" title="Click to copy">
+        sudo xattr -cr /Applications/StockAI.app
+        <span id="gk-copied" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9px;color:#10b981;background:#09090b;padding:2px 6px;border-radius:4px" data-i18n="copied">✓ 已复制</span>
+      </div>
+      <div style="font-size:11px;color:#a1a1aa;line-height:1.7" data-i18n="gk_step2">在终端运行后，重新打开 StockAI 即可。</div>
+    </div>
+    <button onclick="document.getElementById('dl-picker').style.display='none'"
+            style="margin-top:16px;background:none;border:none;color:#52525b;font-size:12px;cursor:pointer;font-family:inherit" data-i18n="close">关闭</button>
+  </div>
+</div>
+
+<script>
+const T={
+  zh:{
+    nav_dl:'免费下载',eyebrow:'适合个人投资者的 AI 分析工具',
+    h1:'股票研究，<br><span>像 Cursor 一样智能</span>',
+    hero_sub:'截屏 + 聊天，让 AI 分析你的图表、宏观数据、财报和新闻。多代理协同，给出结构化研究结论。',
+    dl_btn:'下载 macOS 版本',all_ver:'所有版本',
+    hero_note:'自带 API Key 使用 · 数据不上传 · 完全本地运行',
+    mock_quick:'快速分析',mock_consensus:'多代理共识',mock_sig:'偏强 ▲ 82分',
+    mock_analyzing:'AI正在分析财报、宏观环境和技术指标…',
+    mock_q:'NVDA 最新季度的毛利率和自由现金流怎么样？',
+    mock_a:'毛利率达 78.4%，同比+12pp，自由现金流 $148 亿。核心驱动是数据中心 GPU 需求持续爆发，Blackwell 架构出货超预期。短期需关注出口管制风险…',
+    feat_label:'功能亮点',feat_title:'一个工具，完整的研究流程',feat_sub:'从截屏到多代理分析，再到实时监控和组合管理，全流程 AI 辅助。',
+    f1t:'截屏分析',f1d:'截取 TradingView 图表，AI 直接读懂蜡烛形态、均线、RSI、MACD，输出结构化判断。',
+    f2t:'多代理协同',f2d:'6 个专业 AI 代理（量化、基本面、风控、执行、CEO、质检）同时分析，给出综合结论。',
+    f3t:'实时监控',f3d:'每 5 秒监听价格、RSI、MACD 变动，异常波动自动触发 AI 警报并截屏分析。',
+    f4t:'宏观数据集成',f4d:'实时显示 DXY、10Y 美债、黄金、原油，以及 FOMC、CPI 等经济日历事件。',
+    f5t:'信号实绩追踪',f5d:'记录 AI 信号时的价格，7天、30天后自动比较结果，计算胜率和平均收益。',
+    f6t:'内部人交易追踪',f6d:'显示高管买卖动向，自动纳入分析，判断公司内部对前景的真实态度。',
+    how_label:'使用流程',how_title:'三步开始 AI 研究',
+    s1t:'配置 API Key',s1d:'选择 Gemini、Claude、GPT-5.5 或 DeepSeek，一键跳转获取页面，自动识别复制的 Key。',
+    s2t:'连接 TradingView',s2d:'打开浏览器中的 TradingView，StockAI 自动读取图表数据、价格和技术指标。',
+    s3t:'截屏 + 对话分析',s3d:'点击截屏或输入问题，AI 综合图表、宏观、财报和新闻，给出结构化研究结论。',
+    prov_label:'支持的 AI 提供商',prov_title:'自带 Key，零平台费用',prov_sub:'使用你自己的 API Key，数据完全本地处理，StockAI 不收取任何 AI 调用费用。',
+    prov_gemini:'免费额度充足',prov_claude:'Anthropic · 最强分析',prov_openai:'OpenAI · 生态成熟',prov_ds:'R1 推理 · 极低成本',
+    cta_h:'准备好开始了吗？',cta_p:'免费下载，5 分钟内完成配置，开始你的第一次 AI 股票研究。',
+    cta_note:'需要 macOS 12+  ·  支持 Apple Silicon 和 Intel  ·  数据完全本地运行',
+    footer_copy:'© 2025 StockAI · 内容仅供研究参考，不构成投资建议',
+    dl_pick_title:'选择你的 Mac 版本',dl_pick_sub:'2020年以后的 Mac（M1/M2/M3/M4）→ Apple Silicon<br>旧款 Intel Mac → Intel',
+    dl_intel_note:'以前',gk_title:'⚠ 开始前请阅读',
+    gk_desc:'macOS 会提示「已损坏，无法打开」。这是正常安全警告，解决方法：',
+    gk_step2:'在终端运行后，重新打开 StockAI 即可。',copied:'✓ 已复制',close:'关闭'
+  },
+  en:{
+    nav_dl:'Free Download',eyebrow:'AI analysis tool for individual investors',
+    h1:'Stock Research,<br><span>Smart as Cursor</span>',
+    hero_sub:'Screenshot + chat. Let AI analyze your charts, macro data, earnings, and news. Multi-agent collaboration delivers structured research conclusions.',
+    dl_btn:'Download for macOS',all_ver:'All Versions',
+    hero_note:'Bring your own API Key · No data upload · Runs 100% locally',
+    mock_quick:'Quick Analysis',mock_consensus:'Multi-Agent Consensus',mock_sig:'Bullish ▲ 82pts',
+    mock_analyzing:'AI analyzing earnings, macro environment and technicals…',
+    mock_q:'What are NVDA\'s latest quarterly gross margins and free cash flow?',
+    mock_a:'Gross margin hit 78.4%, up +12pp YoY. FCF $14.8B. Core driver: data center GPU demand, Blackwell shipments beating estimates. Watch for export restrictions and MI300X share…',
+    feat_label:'Features',feat_title:'One tool. Complete research workflow.',feat_sub:'From screenshots to multi-agent analysis, live monitoring, and portfolio management — all AI-assisted.',
+    f1t:'Screenshot Analysis',f1d:'Capture TradingView charts. AI reads candlestick patterns, MAs, RSI, MACD and delivers structured judgments.',
+    f2t:'Multi-Agent AI',f2d:'6 specialized agents (Quant, Fundamental, Risk, Execution, CEO, QA) analyze in parallel and deliver a consensus.',
+    f3t:'Live Monitor',f3d:'Polls price, RSI, MACD every 5 seconds. Abnormal moves trigger AI alerts with auto-screenshot.',
+    f4t:'Macro Data',f4d:'Live DXY, 10Y yield, Gold, Oil — plus FOMC, CPI, and earnings calendar events, all fed into AI context.',
+    f5t:'Signal Tracker',f5d:'Records price at each AI signal. Automatically checks 7-day and 30-day outcomes to compute win rate and avg return.',
+    f6t:'Insider Tracking',f6d:'Shows executive buy/sell activity, automatically incorporated into analysis to gauge insider conviction.',
+    how_label:'How it works',how_title:'3 steps to start',
+    s1t:'Set up API Key',s1d:'Choose Gemini, Claude, GPT-5.5 or DeepSeek. One click opens the key page. App auto-detects when you copy your key.',
+    s2t:'Connect TradingView',s2d:'Open TradingView in your browser. StockAI automatically reads chart data, price, and indicators.',
+    s3t:'Screenshot + Chat',s3d:'Click screenshot or type a question. AI combines chart, macro, earnings, and news into a structured conclusion.',
+    prov_label:'Supported AI Providers',prov_title:'BYOK — Zero platform fees',prov_sub:'Use your own API Key. Data is processed locally. StockAI charges no AI usage fees.',
+    prov_gemini:'Generous free tier',prov_claude:'Anthropic · Deepest analysis',prov_openai:'OpenAI · Most mature',prov_ds:'R1 reasoning · Lowest cost',
+    cta_h:'Ready to get started?',cta_p:'Free download. Set up in 5 minutes. Run your first AI stock research today.',
+    cta_note:'Requires macOS 12+  ·  Apple Silicon and Intel  ·  100% local',
+    footer_copy:'© 2025 StockAI · For research purposes only. Not investment advice.',
+    dl_pick_title:'Choose your Mac version',dl_pick_sub:'Mac from 2020+ (M1/M2/M3/M4) → Apple Silicon<br>Older Intel Mac → Intel',
+    dl_intel_note:'and earlier',gk_title:'⚠ Please read before opening',
+    gk_desc:'macOS may show "damaged, can\'t be opened." This is a normal security warning. Fix it with:',
+    gk_step2:'Run in Terminal, then reopen StockAI.',copied:'✓ Copied',close:'Close'
+  },
+  ja:{
+    nav_dl:'無料ダウンロード',eyebrow:'個人投資家向け AI 分析ツール',
+    h1:'株式リサーチ、<br><span>Cursor のように賢く</span>',
+    hero_sub:'スクリーンショット + チャットで、AI がチャート・マクロデータ・決算・ニュースを分析。マルチエージェント協調で構造化された結論を提供。',
+    dl_btn:'macOS 版をダウンロード',all_ver:'全バージョン',
+    hero_note:'APIキーは自分で用意 · データ非送信 · 完全ローカル動作',
+    mock_quick:'クイック分析',mock_consensus:'マルチエージェント合議',mock_sig:'強気 ▲ 82点',
+    mock_analyzing:'AI が決算・マクロ・テクニカルを分析中…',
+    mock_q:'NVDA の最新四半期の粗利率とフリーキャッシュフローは？',
+    mock_a:'粗利率 78.4%（前年比+12pp）、FCF 148億ドル。データセンター GPU 需要の爆発的拡大と Blackwell 出荷が牽引。輸出規制リスクと MI300X のシェアに注意…',
+    feat_label:'主な機能',feat_title:'1つのツールで、完全な調査フロー',feat_sub:'スクリーンショットからマルチエージェント分析、リアルタイム監視、ポートフォリオ管理まで、全工程を AI がサポート。',
+    f1t:'スクリーンショット分析',f1d:'TradingView のチャートを撮影。AI がローソク足・移動平均・RSI・MACD を読み取り、構造化された判断を出力。',
+    f2t:'マルチエージェント協調',f2d:'6つの専門 AI エージェント（クオンツ・ファンダ・リスク・執行・CEO・QA）が同時に分析し、総合結論を提示。',
+    f3t:'リアルタイム監視',f3d:'5秒ごとに価格・RSI・MACD を監視。異常変動を検知すると AI アラートと自動スクリーンショットを送信。',
+    f4t:'マクロデータ統合',f4d:'DXY・10年債・金・原油をリアルタイム表示。FOMC・CPI・決算カレンダーも AI のコンテキストに自動反映。',
+    f5t:'シグナル実績トラッキング',f5d:'AI シグナル時の価格を記録し、7日後・30日後の結果を自動比較。勝率と平均リターンを計算。',
+    f6t:'インサイダー取引追跡',f6d:'経営幹部の売買動向を表示。分析に自動反映し、会社内部の先行きに対する姿勢を判断。',
+    how_label:'使い方',how_title:'3ステップで始める',
+    s1t:'API キーを設定',s1d:'Gemini・Claude・GPT-5.5・DeepSeek から選択。ワンクリックで取得ページを開き、コピーした Key を自動認識。',
+    s2t:'TradingView を接続',s2d:'ブラウザで TradingView を開くと、StockAI が自動でチャートデータ・価格・インジケーターを読み取ります。',
+    s3t:'スクショ + チャット分析',s3d:'スクリーンショットボタンを押すか質問を入力。AI がチャート・マクロ・決算・ニュースを総合して構造化結論を提示。',
+    prov_label:'対応 AI プロバイダー',prov_title:'自前キーで、プラットフォーム費用ゼロ',prov_sub:'自分の API キーを使用。データは完全ローカル処理。StockAI は AI 利用料を一切請求しません。',
+    prov_gemini:'無料枠が充実',prov_claude:'Anthropic · 最高の分析深度',prov_openai:'OpenAI · 成熟したエコシステム',prov_ds:'R1 推論 · 最安値',
+    cta_h:'始める準備はできましたか？',cta_p:'無料ダウンロード。5分でセットアップ完了。最初の AI 株式調査を今すぐ。',
+    cta_note:'macOS 12 以降が必要  ·  Apple Silicon / Intel 両対応  ·  完全ローカル動作',
+    footer_copy:'© 2025 StockAI · 投資判断の参考情報であり、投資助言ではありません。',
+    dl_pick_title:'Mac のバージョンを選択',dl_pick_sub:'2020年以降の Mac（M1/M2/M3/M4）→ Apple Silicon<br>旧 Intel Mac → Intel',
+    dl_intel_note:'以前',gk_title:'⚠ 開く前にお読みください',
+    gk_desc:'macOS が「壊れているため開けません」と表示される場合があります。これは通常のセキュリティ警告です。解決方法：',
+    gk_step2:'ターミナルで実行後、StockAI を再度開いてください。',copied:'✓ コピー完了',close:'閉じる'
+  }
+};
+
+let curLang=localStorage.getItem('sai_web_lang')||'zh';
+
+function setLang(l){
+  curLang=l;
+  localStorage.setItem('sai_web_lang',l);
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key=el.dataset.i18n;
+    if(T[l]&&T[l][key]!==undefined) el.innerHTML=T[l][key];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('act',b.textContent.trim()===(l==='zh'?'中文':l==='en'?'EN':'日本語')));
+  document.documentElement.lang=l==='ja'?'ja':l==='en'?'en':'zh';
+}
+
+function dlDetect(){
+  const p=document.getElementById('dl-picker');
+  p.style.display='flex';
+  p.onclick=function(e){if(e.target===p)p.style.display='none';};
+}
+
+function copyGKCmd(){
+  navigator.clipboard.writeText('sudo xattr -cr /Applications/StockAI.app').then(()=>{
+    const el=document.getElementById('gk-copied');
+    el.style.display='block';
+    setTimeout(()=>el.style.display='none',2000);
+  });
+}
+
+// Init
+setLang(curLang);
+</script>
+</body>
+</html>

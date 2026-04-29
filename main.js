@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, screen, desktopCapturer, globalShortcut, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, desktopCapturer, globalShortcut, safeStorage, shell, clipboard } = require('electron');
 const fetch = require('node-fetch');
 const CDP = require('chrome-remote-interface');
 const fs = require('fs');
@@ -225,6 +225,32 @@ ipcMain.handle('run-agents',async(_,{keys,symbol,marketData,tvState,screenshot,l
 });
 
 function parseJSON(raw){if(!raw)return{parseError:true,raw:''};try{let depth=0,start=-1;for(let i=0;i<raw.length;i++){if(raw[i]==='{'){if(depth===0)start=i;depth++;}else if(raw[i]==='}'){depth--;if(depth===0&&start>=0)return JSON.parse(raw.substring(start,i+1));}}return{parseError:true,raw};}catch(e){return{parseError:true,raw};}}
+
+// ═══ Signal Outcome Tracker ═══
+ipcMain.handle('check-signal-outcomes',async()=>{
+  try{
+    const file=path.join(DATA_DIR,'history.json');
+    let h=[];try{h=JSON.parse(fs.readFileSync(file,'utf8'));}catch(e){return{ok:true,history:[]};}
+    const now=Date.now();
+    const need7=h.filter(e=>e.price&&!e.outcome7d&&(now-e.timestamp)>=7*86400000&&(now-e.timestamp)<180*86400000);
+    const need30=h.filter(e=>e.price&&!e.outcome30d&&(now-e.timestamp)>=30*86400000&&(now-e.timestamp)<365*86400000);
+    const syms=[...new Set([...need7,...need30].map(e=>e.symbol?.toUpperCase()).filter(Boolean))];
+    if(!syms.length)return{ok:true,history:h};
+    const prices={};
+    await Promise.all(syms.map(async sym=>{try{const r=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=5d`,{headers:UA});const p=r?.chart?.result?.[0]?.meta?.regularMarketPrice;if(p)prices[sym]=p;}catch(e){}}));
+    let changed=false;
+    h=h.map(entry=>{
+      const sym=entry.symbol?.toUpperCase();const cur=prices[sym];if(!cur||!entry.price)return entry;
+      const age=(now-entry.timestamp)/86400000;const chg=parseFloat(((cur-entry.price)/entry.price*100).toFixed(2));
+      let e={...entry};
+      if(age>=7&&!e.outcome7d){e.outcome7d={price:cur,change:chg,checkedAt:now};changed=true;}
+      if(age>=30&&!e.outcome30d){e.outcome30d={price:cur,change:chg,checkedAt:now};changed=true;}
+      return e;
+    });
+    if(changed)fs.writeFileSync(file,JSON.stringify(h,null,2));
+    return{ok:true,history:h};
+  }catch(e){return{ok:true,history:[]};}
+});
 
 // ═══ Single AI / Multi-AI / Agent Chat ═══
 ipcMain.handle('ai',async(_,{key,model,messages,search})=>{try{if(!key)return{error:'APIキーが設定されていません'};return{ok:true,text:await callAI(inferAIType(key,model),key,model,messages,search)};}catch(e){return{error:e.message};}});
@@ -724,3 +750,6 @@ ${JSON.stringify(rows)}`;
     return{ok:true,data:parsed||{marketMood:raw,items:[],warnings:[]},rows};
   }catch(e){return{error:e.message};}
 });
+
+ipcMain.handle('read-clipboard',()=>clipboard.readText());
+ipcMain.handle('open-external',(_,url)=>shell.openExternal(url));
