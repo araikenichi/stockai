@@ -6,7 +6,7 @@ Use your existing Claude Code subscription to do AI-powered stock research from 
 
 ## Features
 
-7 tools exposed via MCP:
+15 tools exposed via MCP:
 
 | Tool | Description |
 |---|---|
@@ -17,6 +17,14 @@ Use your existing Claude Code subscription to do AI-powered stock research from 
 | `get_macro_data` | DXY, 10Y, Gold, Oil, VIX, S&P 500 |
 | `get_insider_trades` | Executive buys/sells + 6-month net |
 | `get_economic_calendar` | Upcoming FOMC, CPI events |
+| `get_advanced_technicals` | Bollinger Bands, Stochastic %K, ATR, Williams %R, Ichimoku Cloud |
+| `get_multi_timeframe` | RSI + EMA + trend across 5m / 1h / 1d / 1wk timeframes |
+| `get_options_data` | Implied volatility, put/call ratio, ATM strike, expiration dates |
+| `get_short_interest` | Short % of float, days-to-cover, squeeze potential |
+| `compare_stocks` | Side-by-side: price, RSI, PE, margins, analyst target for 2–6 tickers |
+| `get_sector_performance` | All 11 S&P 500 sectors day/week/month returns |
+| `get_earnings_history` | Last 8 quarters actual vs estimate, beat rate, forward estimates |
+| `get_volume_profile` | 3-month volume histogram + Point of Control price level |
 
 ## Install
 
