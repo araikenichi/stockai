@@ -115,16 +115,63 @@ async function loadSecureKeys(){
   }
   if(stored.gemini?.model)model=stored.gemini.model;
   ['sai_key','sai_key_gemini','sai_key_claude','sai_key_openai','sai_key_deepseek'].forEach(k=>localStorage.removeItem(k));
+  // Restore CLI auth selections
+  if(localStorage.getItem('sai_use_claude_cli')==='1'){
+    keyClaude='__cli__';
+    if(Q('dot-claude'))Q('dot-claude').classList.add('on');
+    if(Q('claude-cli-banner'))Q('claude-cli-banner').style.display='block';
+    if(Q('claude-tag')){Q('claude-tag').textContent='CLI';Q('claude-tag').style.background='var(--ac2)';Q('claude-tag').style.color='var(--ac)';}
+  }
+  if(localStorage.getItem('sai_use_codex_cli')==='1'&&!keyOpenAI){
+    try{const r=await ipcRenderer.invoke('cli-ai',{provider:'codex-cli'});
+      if(r.ok&&r.key){
+        keyOpenAI=r.key;
+        if(Q('dot-openai'))Q('dot-openai').classList.add('on');
+        if(Q('codex-cli-banner'))Q('codex-cli-banner').style.display='block';
+        if(Q('openai-tag')){Q('openai-tag').textContent='CLI';Q('openai-tag').style.background='var(--ac2)';Q('openai-tag').style.color='var(--ac)';}
+      }
+    }catch(e){}
+  }
 }
 async function saveKey(p){const k=Q('key-'+p)?.value.trim()||'',m=Q('model-'+p)?.value||'';if(m)localStorage.setItem('sai_model_'+p,m);if(k){const r=await ipcRenderer.invoke('save-api-key',{provider:p,key:k,model:m});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}setProviderKey(p,k);if(p==='gemini')model=m||model;Q('key-'+p).value='';Q('key-'+p).placeholder='已安全保存，输入新 Key 可替换';}else if(m){const r=await ipcRenderer.invoke('save-api-key',{provider:p,key:providerKey(p),model:m});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}if(p==='gemini')model=m;}if(Q('dot-'+p))Q('dot-'+p).classList.toggle('on',!!providerKey(p));if(m&&p==='gemini'){model=m;localStorage.setItem('sai_model',m);}Q('api-'+p).classList.remove('show');if(activeAPIKey())setTimeout(()=>Q('pnl-settings').classList.remove('open'),300);}
 function saveMdl(m){model=m;localStorage.setItem('sai_model',m);}
-async function clearKey(p){const r=await ipcRenderer.invoke('delete-api-key',{provider:p});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}setProviderKey(p,'');if(Q('dot-'+p))Q('dot-'+p).classList.remove('on');if(Q('key-'+p)){Q('key-'+p).value='';Q('key-'+p).placeholder=p==='gemini'?'AIza...':'sk-...';}addMsg('ai','<div style="color:var(--tx2);font-size:11px">'+esc(p)+' のキーを削除しました</div>',1);}
+async function clearKey(p){
+  // Clear CLI flag if applicable
+  if(p==='claude')localStorage.removeItem('sai_use_claude_cli');
+  if(p==='openai')localStorage.removeItem('sai_use_codex_cli');
+  const r=await ipcRenderer.invoke('delete-api-key',{provider:p});if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}setProviderKey(p,'');if(Q('dot-'+p))Q('dot-'+p).classList.remove('on');if(Q('key-'+p)){Q('key-'+p).value='';Q('key-'+p).placeholder=p==='gemini'?'AIza...':'sk-...';}addMsg('ai','<div style="color:var(--tx2);font-size:11px">'+esc(p)+' のキーを削除しました</div>',1);
+}
 
 // ═══ Onboarding ═══
 let obProvider='',obClipTimer=null;
 const OB_URLS={gemini:'https://aistudio.google.com/app/apikey',claude:'https://console.anthropic.com/settings/keys',openai:'https://platform.openai.com/api-keys',deepseek:'https://platform.deepseek.com/api_keys'};
 const OB_PREFIX={gemini:'AIza',claude:'sk-ant-',openai:'sk-',deepseek:'sk-'};
-function showOnboarding(){const o=Q('onboarding');if(o)o.style.display='block';}
+async function detectCLIAuth(){
+  try{
+    const r=await ipcRenderer.invoke('detect-cli-auth');
+    let any=false;
+    if(r.claude?.available){Q('ob-cli-claude').style.display='block';any=true;}
+    if(r.codex?.available||r.codex?.hasAuth){Q('ob-cli-codex').style.display='block';any=true;}
+    if(any)Q('ob-cli-section').style.display='block';
+    return r;
+  }catch(e){return null;}
+}
+async function obSelectCLI(p){
+  // p is 'claude-cli' or 'codex-cli'
+  if(p==='claude-cli'){
+    keyClaude='__cli__'; // Sentinel value indicating CLI mode
+    localStorage.setItem('sai_use_claude_cli','1');
+    if(Q('dot-claude'))Q('dot-claude').classList.add('on');
+  }else if(p==='codex-cli'){
+    const r=await ipcRenderer.invoke('cli-ai',{provider:'codex-cli'});
+    if(r.error){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);return;}
+    keyOpenAI=r.key;
+    localStorage.setItem('sai_use_codex_cli','1');
+    if(Q('dot-openai'))Q('dot-openai').classList.add('on');
+  }
+  hideOnboarding();togP('dashboard');initDashboard();
+}
+function showOnboarding(){const o=Q('onboarding');if(o){o.style.display='block';detectCLIAuth();}}
 function hideOnboarding(){const o=Q('onboarding');if(o)o.style.display='none';stopObClip();}
 function obSelect(p){
   obProvider=p;

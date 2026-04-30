@@ -3,6 +3,8 @@ const fetch = require('node-fetch');
 const CDP = require('chrome-remote-interface');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { spawn } = require('child_process');
 
 let win = null, tvClient = null, autoTimer = null, smartTimer = null;
 let streamData = { history: [], current: null }; // Last 60 data points (5 min at 5s intervals)
@@ -125,6 +127,20 @@ function textOnlyMessages(messages){
   }));
 }
 async function callAI(type,key,model,messages,search=false){
+  // CLI auth sentinel: route Claude calls through Claude Code subprocess
+  if(type==='claude'&&key==='__cli__'){
+    let sys='';const msgs=[...messages];
+    if(msgs[0]?.role==='system'){sys=msgs.shift().content;}
+    // Flatten messages to a single text prompt (CLI mode is text-only)
+    const flatten=m=>Array.isArray(m.content)
+      ?m.content.filter(c=>c.type==='text').map(c=>c.text).join('\n')
+      :String(m.content||'');
+    const prompt=msgs.map(m=>(m.role==='user'?'':'[Assistant]\n')+flatten(m)).join('\n\n');
+    const hasImg=msgs.some(m=>Array.isArray(m.content)&&m.content.some(c=>c.type==='image'));
+    if(hasImg)throw new Error('Claude Code CLI モードは現在テキスト専用です。画像分析には API キーが必要です。');
+    const cliModel=model&&model.includes('opus')?'opus':'sonnet';
+    return await callClaudeCLI({prompt,systemPrompt:sys,model:cliModel});
+  }
   if(type==='gemini'){let sys='';const msgs=[...messages];if(msgs[0]?.role==='system'){sys=msgs.shift().content;}const contents=msgs.map(m=>{const parts=[];if(Array.isArray(m.content))m.content.forEach(c=>{if(c.type==='text')parts.push({text:c.text});else if(c.type==='image')parts.push({inline_data:{mime_type:c.source.media_type,data:c.source.data}});});else parts.push({text:String(m.content||'')});return{role:m.role==='assistant'?'model':'user',parts};});const body={contents,generationConfig:{maxOutputTokens:4000}};if(sys)body.systemInstruction={parts:[{text:sys}]};if(search)body.tools=[{google_search:{}}];body.safetySettings=[{category:'HARM_CATEGORY_HARASSMENT',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_HATE_SPEECH',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_SEXUALLY_EXPLICIT',threshold:'BLOCK_NONE'},{category:'HARM_CATEGORY_DANGEROUS_CONTENT',threshold:'BLOCK_NONE'}];const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok){const e=await r.json().catch(()=>({}));const msg=e.error?.message||'';if(r.status===400&&msg.includes('API_KEY'))throw new Error('Gemini APIキーが無効です。キーを確認してください');if(r.status===429)throw new Error('Gemini レート制限。しばらく待ってください');throw new Error('Gemini: '+msg||r.status);}const d=await r.json();if(d.promptFeedback?.blockReason)throw new Error('Gemini: コンテンツがブロックされました');return d.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('').trim()||'';}
   if(type==='claude'){let sys='';const msgs=[...messages];if(msgs[0]?.role==='system'){sys=msgs.shift().content;}const body={model:model||'claude-sonnet-4-20250514',max_tokens:4000,messages:msgs};if(sys)body.system=sys;if(search)body.tools=[{type:'web_search_20250305',name:'web_search'}];let cur=[...msgs];for(let i=0;i<8;i++){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},body:JSON.stringify({...body,messages:cur})});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401)throw new Error('Claude APIキーが無効です');if(r.status===429)throw new Error('Claude レート制限');throw new Error('Claude: '+(e.error?.message||r.status));}const d=await r.json();if(d.stop_reason==='tool_use'){cur.push({role:'assistant',content:d.content});cur.push({role:'user',content:d.content.filter(b=>b.type==='tool_use').map(b=>({type:'tool_result',tool_use_id:b.id,content:[{type:'text',text:'done'}]}))});}else return d.content.filter(b=>b.type==='text').map(b=>b.text).join('\n');}throw new Error('Claude: 最大ループ回数超過');}
   if(type==='openai'){const msgs=messages.map(m=>({role:m.role,content:Array.isArray(m.content)?m.content.map(c=>c.type==='image'?{type:'image_url',image_url:{url:`data:${c.source.media_type};base64,${c.source.data}`}}:{type:'text',text:c.text||''}):m.content}));const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:model||'gpt-4o',messages:msgs,max_tokens:3000})});if(!r.ok){const e=await r.json().catch(()=>({}));if(r.status===401)throw new Error('OpenAI APIキーが無効です');if(r.status===429)throw new Error('OpenAI レート制限');throw new Error('OpenAI: '+(e.error?.message||r.status));}return(await r.json()).choices[0].message.content;}
@@ -753,3 +769,76 @@ ${JSON.stringify(rows)}`;
 
 ipcMain.handle('read-clipboard',()=>clipboard.readText());
 ipcMain.handle('open-external',(_,url)=>shell.openExternal(url));
+
+// ═══ CLI Auth Detection (Claude Code / Codex) ═══
+function findBin(name){
+  const paths=[
+    path.join(os.homedir(),'.local/bin',name),
+    `/opt/homebrew/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    path.join(os.homedir(),'.cargo/bin',name),
+    path.join(os.homedir(),'.npm-global/bin',name)
+  ];
+  for(const p of paths){if(fs.existsSync(p))return p;}
+  // Try PATH-based which
+  try{
+    const r=require('child_process').execSync(`which ${name}`,{encoding:'utf8',timeout:1500}).trim();
+    if(r&&fs.existsSync(r))return r;
+  }catch(e){}
+  return null;
+}
+
+function readCodexAuth(){
+  const f=path.join(os.homedir(),'.codex/auth.json');
+  if(!fs.existsSync(f))return null;
+  try{
+    const j=JSON.parse(fs.readFileSync(f,'utf8'));
+    return j.OPENAI_API_KEY||j.openai_api_key||j.api_key||j.tokens?.access_token||null;
+  }catch(e){return null;}
+}
+
+ipcMain.handle('detect-cli-auth',()=>{
+  const claudeBin=findBin('claude');
+  const codexBin=findBin('codex');
+  const codexKey=readCodexAuth();
+  return{
+    claude:{available:!!claudeBin,path:claudeBin},
+    codex:{available:!!codexBin||!!codexKey,path:codexBin,hasAuth:!!codexKey}
+  };
+});
+
+// Run Claude Code as subprocess for text-only AI calls
+async function callClaudeCLI({prompt,systemPrompt,model='sonnet'}){
+  return new Promise((resolve,reject)=>{
+    const claudeBin=findBin('claude');
+    if(!claudeBin)return reject(new Error('Claude Code CLI が見つかりません'));
+    const args=['--print','--output-format','text','--model',model];
+    if(systemPrompt)args.push('--append-system-prompt',systemPrompt);
+    args.push(prompt);
+    const proc=spawn(claudeBin,args,{env:{...process.env},timeout:120000});
+    let out='',err='';
+    proc.stdout.on('data',d=>out+=d.toString());
+    proc.stderr.on('data',d=>err+=d.toString());
+    proc.on('close',code=>{
+      if(code===0)resolve(out.trim());
+      else reject(new Error(err.trim()||`claude CLI exit ${code}`));
+    });
+    proc.on('error',e=>reject(e));
+  });
+}
+
+ipcMain.handle('cli-ai',async(_,{provider,prompt,systemPrompt,model})=>{
+  try{
+    if(provider==='claude-cli'){
+      const text=await callClaudeCLI({prompt,systemPrompt,model:model||'sonnet'});
+      return{ok:true,text};
+    }
+    if(provider==='codex-cli'){
+      const key=readCodexAuth();
+      if(!key)return{error:'Codex auth.json が見つかりません'};
+      // Treat like a regular OpenAI key - reuse OpenAI flow
+      return{ok:true,key,model:model||'gpt-4.1'};
+    }
+    return{error:'Unknown provider'};
+  }catch(e){return{error:e.message};}
+});

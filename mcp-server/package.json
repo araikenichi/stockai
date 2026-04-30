@@ -1,0 +1,24 @@
+{
+  "name": "stockai-mcp",
+  "version": "1.0.0",
+  "description": "StockAI MCP server - stock analysis tools for Claude Code and other MCP clients",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "stockai-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["mcp", "stock", "trading", "claude", "ai"],
+  "author": "StockAI",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "node-fetch": "^3.3.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": ["index.js", "README.md"]
+}

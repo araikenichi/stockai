@@ -10,7 +10,7 @@ const allowedInvoke = new Set([
   'tv-connect','tv-state','tv-symbol','tv-set-pine','tv-compile',
   'smart-monitor-start','smart-monitor-stop','get-stream-context','ai-with-context',
   'save-api-key','load-api-keys','delete-api-key','export-report','watchlist-analysis','debate-ai','load-symbol-history','check-signal-outcomes',
-  'read-clipboard','open-external'
+  'read-clipboard','open-external','detect-cli-auth','cli-ai'
 ]);
 
 const allowedOn = new Set(['tv-status','auto-alert','agent-progress','stream-tick','smart-alert']);
