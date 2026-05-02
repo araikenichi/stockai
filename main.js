@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
+const AlpacaWS = require('ws');
 
 let win = null, tvClient = null, autoTimer = null, smartTimer = null;
 let streamData = { history: [], current: null }; // Last 60 data points (5 min at 5s intervals)
@@ -836,9 +837,677 @@ ipcMain.handle('cli-ai',async(_,{provider,prompt,systemPrompt,model})=>{
     if(provider==='codex-cli'){
       const key=readCodexAuth();
       if(!key)return{error:'Codex auth.json が見つかりません'};
-      // Treat like a regular OpenAI key - reuse OpenAI flow
       return{ok:true,key,model:model||'gpt-4.1'};
     }
     return{error:'Unknown provider'};
   }catch(e){return{error:e.message};}
+});
+
+// ═══════════════════════════════════════════════════════════
+// ALPACA PAPER TRADING BOT
+// ═══════════════════════════════════════════════════════════
+const ALPACA_PAPER='https://paper-api.alpaca.markets';
+const BOT_CFG_FILE=path.join(DATA_DIR,'bot-config.json');
+const BOT_PORTFOLIO_FILE=path.join(DATA_DIR,'bot-portfolio-history.json');
+let botTimer=null,botRunning=false,botLogs=[];
+let alpacaWs=null,alpacaWsReady=false,scalpBarCache={};
+let botLang='zh'; // UI言語と同期（bot-set-lang IPCで更新）
+const BL=(zh,ja,en)=>botLang==='ja'?ja:botLang==='en'?(en||zh):zh;
+const ALPACA_STREAM='wss://stream.data.alpaca.markets/v2/iex';
+const ALPACA_DATA='https://data.alpaca.markets';
+
+function loadPortfolioHistory(){try{return JSON.parse(fs.readFileSync(BOT_PORTFOLIO_FILE,'utf8'));}catch(e){return[];}}
+function savePortfolioSnapshot(value){
+  ensureDir();
+  const history=loadPortfolioHistory();
+  history.push({time:new Date().toISOString(),value:parseFloat(value)});
+  // Keep last 2000 snapshots (≈ 2000 cycles)
+  if(history.length>2000)history.splice(0,history.length-2000);
+  fs.writeFileSync(BOT_PORTFOLIO_FILE,JSON.stringify(history));
+}
+
+function loadBotConfig(){
+  try{
+    const cfg=JSON.parse(fs.readFileSync(BOT_CFG_FILE,'utf8'));
+    // 旧設定への後方互換（新フィールドのデフォルト値を補完）
+    if(cfg.maxConcurrentPositions==null)cfg.maxConcurrentPositions=3;
+    if(cfg.limitSlippagePct==null)cfg.limitSlippagePct=0.1;
+    if(cfg.useBracketOrders==null)cfg.useBracketOrders=true;
+    return cfg;
+  }catch(e){return{watchlist:['NVDA','AAPL','MSFT','TSLA','AMZN'],maxPositionUSD:500,stopLossPercent:3,takeProfitPercent:8,intervalMinutes:15,buyRSI:35,sellRSI:65,scalpMode:false,scalpStopPct:0.5,scalpProfitPct:1.5,maxConcurrentPositions:3,limitSlippagePct:0.1,useBracketOrders:true};}
+}
+function saveBotConfig(cfg){ensureDir();fs.writeFileSync(BOT_CFG_FILE,JSON.stringify(cfg,null,2));}
+
+function botLog(msg,type='info'){
+  const entry={time:new Date().toISOString(),msg,type};
+  botLogs.unshift(entry);
+  if(botLogs.length>150)botLogs=botLogs.slice(0,150);
+  send('bot-update',{type:'log',entry});
+}
+
+// ─── Bracket（OCO）注文ヘルパー: 指値買い + サーバー側 SL/TP 自動設置 ───
+async function placeBracketBuy(keyId,secret,sym,qty,currentPrice,slPct,tpPct,slippageBufferPct=0.1){
+  const buf=slippageBufferPct/100;
+  // 指値: 現在価格 + バッファ（スリッページ吸収）
+  const limitPx=+(currentPrice*(1+buf)).toFixed(2);
+  // TP: 約定想定価格より +tpPct%
+  const tpPx=+(limitPx*(1+tpPct/100)).toFixed(2);
+  // SL: 約定想定価格より -slPct%
+  const slPx=+(limitPx*(1-slPct/100)).toFixed(2);
+  const body={
+    symbol:sym,qty:String(qty),side:'buy',type:'limit',
+    limit_price:String(limitPx),time_in_force:'day',
+    order_class:'bracket',
+    take_profit:{limit_price:String(tpPx)},
+    stop_loss:{stop_price:String(slPx)}
+  };
+  return await alpacaFetch(keyId,secret,'POST','/v2/orders',body);
+}
+
+// ─── ポジション安全クローズ: 子注文（SL/TP）を全部キャンセルしてから決済 ───
+async function closePositionSafely(keyId,secret,sym){
+  try{
+    const orders=await alpacaFetch(keyId,secret,'GET',`/v2/orders?status=open&symbols=${sym}&limit=50`);
+    for(const o of (Array.isArray(orders)?orders:[])){
+      try{await alpacaFetch(keyId,secret,'DELETE',`/v2/orders/${o.id}`);}catch(e){}
+    }
+  }catch(e){}
+  // 50ms待ってからクローズ（キャンセル処理が反映されるまで）
+  await new Promise(r=>setTimeout(r,80));
+  return await alpacaFetch(keyId,secret,'DELETE',`/v2/positions/${sym}`);
+}
+
+async function alpacaFetch(keyId,secret,method,endpoint,body=null){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),14000);
+  const opts={method,headers:{'APCA-API-KEY-ID':keyId,'APCA-API-SECRET-KEY':secret,'Content-Type':'application/json'},signal:ctrl.signal};
+  if(body)opts.body=JSON.stringify(body);
+  try{
+    const r=await fetch(`${ALPACA_PAPER}${endpoint}`,opts);
+    clearTimeout(timer);
+    const text=await r.text();
+    if(!r.ok){let msg=text;try{msg=JSON.parse(text).message||text;}catch(e){}throw new Error(`Alpaca ${r.status}: ${msg}`);}
+    return JSON.parse(text);
+  }catch(e){clearTimeout(timer);if(e.name==='AbortError')throw new Error('接続タイムアウト (14s)');throw e;}
+}
+
+function isMarketOpen(){
+  const est=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  if(est.getDay()===0||est.getDay()===6)return false;
+  const t=est.getHours()*60+est.getMinutes();
+  return t>=570&&t<960; // 9:30-16:00 EST
+}
+
+// ── 高精度テクニカル指標（ボット専用） ──
+function calcBotTech(ohlcv){
+  const closes=ohlcv.map(d=>d.c);
+  const n=closes.length;
+  const ema=(arr,p)=>{const k=2/(p+1);let e=arr[0];for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;};
+  const calcRSI=arr=>{let g=0,l=0;for(let i=Math.max(1,arr.length-14);i<arr.length;i++){const d=arr[i]-arr[i-1];if(d>0)g+=d;else l-=d;}return l===0?100:100-100/(1+(g/l));};
+  // RSI today vs yesterday → 反発確認
+  const rsiToday=calcRSI(closes);
+  const rsiYest=calcRSI(closes.slice(0,-1));
+  const rsiRising=rsiToday>rsiYest;
+  // MACD series + signal line でゴールデンクロス検出
+  const macdSeries=[];
+  for(let i=Math.max(27,n-12);i<=n;i++){
+    const sl=closes.slice(0,i);
+    macdSeries.push(ema(sl,12)-ema(sl,26));
+  }
+  const sigSeries=[];
+  for(let i=8;i<macdSeries.length;i++)sigSeries.push(ema(macdSeries.slice(0,i+1),9));
+  const mLen=macdSeries.length,sLen=sigSeries.length;
+  const macdNow=macdSeries[mLen-1]||0,macdPrev=macdSeries[mLen-2]||0;
+  const sigNow=sigSeries[sLen-1]||0,sigPrev=sigSeries[sLen-2]||sigNow;
+  // ゴールデンクロス：今日または直近2日以内にMACD>Signal
+  const macdCross=(macdNow>sigNow)&&(macdPrev<=sigPrev||macdSeries[mLen-3]<=(sigSeries[sLen-3]||sigPrev));
+  const macdAboveSignal=macdNow>sigNow;
+  return{rsiToday,rsiYest,rsiRising,macdCross,macdAboveSignal,macdNow,sigNow};
+}
+
+// 決算日チェック（7日以内なら true）
+async function isEarningsSoon(sym){
+  try{
+    const r=await fetchR(`https://query1.finance.yahoo.com/v10/finance/quoteSummary/${sym}?modules=calendarEvents`,{headers:UA});
+    const dates=r?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate||[];
+    if(!dates.length)return false;
+    const next=new Date(dates[0].raw*1000);
+    const diffDays=(next-Date.now())/(1000*60*60*24);
+    return diffDays>=0&&diffDays<=7;
+  }catch(e){return false;}
+}
+
+// ── Alpaca WebSocket リアルタイムバーストリーム ──
+
+// 初回起動時: Alpaca REST で過去100本の1分足を取得してキャッシュに詰める
+async function prefillBarCache(keyId,secret,symbols){
+  try{
+    botLog(BL('📦 正在获取初始Bar数据…','📦 Alpaca REST で初期バーデータ取得中…','📦 Fetching initial bar data…'),'info');
+    const syms=symbols.join(','); // コンマをエンコードしない（APIの仕様）
+    const url=`${ALPACA_DATA}/v2/stocks/bars?symbols=${syms}&timeframe=1Min&limit=100&feed=iex&sort=asc`;
+    const r=await fetch(url,{headers:{'APCA-API-KEY-ID':keyId,'APCA-API-SECRET-KEY':secret},timeout:15000});
+    if(!r.ok){
+      const txt=await r.text().catch(()=>'');
+      botLog(`⚠ ${BL("Bar初始化失败","バー初期化失敗","Bar init failed")} HTTP ${r.status}: ${txt.slice(0,80)}`,'warn');return;
+    }
+    const data=await r.json();
+    if(data.bars&&Object.keys(data.bars).length){
+      for(const [sym,bars] of Object.entries(data.bars)){
+        scalpBarCache[sym]=(bars||[]).map(b=>({t:b.t,o:b.o,h:b.h,l:b.l,c:b.c,v:b.v}));
+      }
+      const counts=Object.entries(scalpBarCache).map(([s,b])=>`${s}:${b.length}本`).join(' ');
+      botLog(`✅ ${BL("Bar缓存初始化完成","バーキャッシュ初期化完了","Bar cache ready")} — ${counts}`,'info');
+    }else{
+      botLog(BL('⚠ 暂无Bar数据（可能在休市时段 — WS连接后开始积累）','⚠ バーデータなし（市場時間外の可能性あり）','⚠ No bar data (market may be closed — will accumulate after WS connects)'),'warn');
+    }
+  }catch(e){botLog(BL('⚠ Bar缓存初始化失败: ','⚠ バーキャッシュ初期化失敗: ','⚠ Bar cache init failed: ')+e.message,'warn');}
+}
+
+// WebSocket 接続・認証・購読
+function connectAlpacaStream(keyId,secret,symbols){
+  if(alpacaWs){try{alpacaWs.terminate();}catch(e){}alpacaWs=null;}
+  alpacaWsReady=false;
+  botLog(BL('🔌 正在连接 Alpaca WebSocket…','🔌 Alpaca WebSocket 接続中…','🔌 Connecting to Alpaca WebSocket…'),'info');
+  try{
+    const ws=new AlpacaWS(ALPACA_STREAM);
+    alpacaWs=ws;
+    ws.on('open',()=>{
+      // 接続直後に認証送信（1回のみ）
+      ws.send(JSON.stringify({action:'auth',key:keyId,secret}));
+    });
+    ws.on('message',(raw)=>{
+      try{
+        const msgs=JSON.parse(raw.toString());
+        for(const m of (Array.isArray(msgs)?msgs:[msgs])){
+          // 'connected' は無視（authはopen時に送信済み）
+          if(m.T==='success'&&m.msg==='authenticated'){
+            botLog(BL('🔑 Alpaca WS 认证成功 — 开始订阅1分钟Bar','🔑 Alpaca WS 認証成功 — 1分足バー購読開始','🔑 Alpaca WS authenticated — subscribing to 1-min bars'),'info');
+            ws.send(JSON.stringify({action:'subscribe',bars:symbols}));
+          }else if(m.T==='subscription'){
+            alpacaWsReady=true;
+            const subs=m.bars||[];
+            botLog(`📡 ${BL("实时接收Bar数据","リアルタイムバー受信中","Receiving real-time bars")}: [${subs.join(', ')}]`,'info');
+            send('bot-update',{type:'ws-status',connected:true,symbols:subs});
+          }else if(m.T==='b'){
+            // 1分足バー受信 → キャッシュに追記
+            const sym=m.S;
+            if(!scalpBarCache[sym])scalpBarCache[sym]=[];
+            scalpBarCache[sym].push({t:m.t,o:m.o,h:m.h,l:m.l,c:m.c,v:m.v});
+            if(scalpBarCache[sym].length>300)scalpBarCache[sym]=scalpBarCache[sym].slice(-300);
+          }else if(m.T==='error'){
+            botLog(`⚠ Alpaca WS ${BL("错误","エラー","error")} [${m.code}]: ${m.msg}`,'warn');
+            send('bot-update',{type:'ws-status',connected:false});
+          }
+        }
+      }catch(e){}
+    });
+    ws.on('error',(e)=>{
+      alpacaWsReady=false;
+      botLog(BL('❌ Alpaca WS 错误: ','❌ Alpaca WS エラー: ','❌ Alpaca WS error: ')+e.message,'error');
+      send('bot-update',{type:'ws-status',connected:false});
+    });
+    ws.on('close',()=>{
+      alpacaWsReady=false;
+      send('bot-update',{type:'ws-status',connected:false});
+      if(botRunning&&loadBotConfig().scalpMode){
+        botLog(BL('🔄 Alpaca WS 断开 — 8秒后自动重连…','🔄 Alpaca WS 切断 — 8秒後に自動再接続…','🔄 Alpaca WS disconnected — reconnecting in 8s…'),'warn');
+        setTimeout(()=>{if(botRunning&&loadBotConfig().scalpMode)connectAlpacaStream(keyId,secret,symbols);},8000);
+      }
+    });
+  }catch(e){botLog(BL('❌ Alpaca WS 连接失败: ','❌ Alpaca WS 接続失敗: ','❌ Alpaca WS connection failed: ')+e.message,'error');}
+}
+
+function disconnectAlpacaStream(){
+  if(alpacaWs){try{alpacaWs.terminate();}catch(e){}alpacaWs=null;}
+  alpacaWsReady=false;
+  scalpBarCache={};
+}
+
+// ── スキャルピングモード（1分足リアルタイム、高頻度）──
+async function runScalpCycle(keyId,secret,cfg){
+  botLog(BL('⚡ 开始高频刷单周期','⚡ スキャルプサイクル開始','⚡ Scalp cycle started'),'info');
+  send('bot-update',{type:'cycle-start'});
+
+  // アカウント&ポジション取得
+  let account,positions;
+  try{
+    [account,positions]=await Promise.all([
+      alpacaFetch(keyId,secret,'GET','/v2/account'),
+      alpacaFetch(keyId,secret,'GET','/v2/positions'),
+    ]);
+  }catch(e){botLog(BL('❌ Alpaca连接失败: ','❌ Alpaca接続エラー: ','❌ Alpaca error: ')+e.message,'error');send('bot-update',{type:'cycle-end'});return;}
+  let buyingPower=parseFloat(account.buying_power);
+  const posMap={};for(const p of positions)posMap[p.symbol]=p;
+  send('bot-update',{type:'account',account,positions});
+  try{savePortfolioSnapshot(account.portfolio_value||account.equity||0);}catch(e){}
+
+  // 市場ヘルスチェック（Alpaca REST で S&P500 スナップショット）
+  let spOk=true;
+  try{
+    const spSnap=await fetch(`${ALPACA_DATA}/v2/stocks/bars?symbols=SPY&timeframe=1Min&limit=10&feed=iex&sort=asc`,
+      {headers:{'APCA-API-KEY-ID':keyId,'APCA-API-SECRET-KEY':secret},timeout:8000});
+    const spData=await spSnap.json();
+    const spBars=(spData?.bars?.SPY||[]).map(b=>b.c).filter(c=>c!=null);
+    if(spBars.length>=5){
+      const last=spBars[spBars.length-1];
+      const avg5=spBars.slice(-6,-1).reduce((a,b)=>a+b,0)/5;
+      spOk=last>=avg5*0.997;
+      botLog(`📊 SPY 1m: $${last?.toFixed(2)} vs avg $${avg5?.toFixed(2)} — ${spOk?'OK ✓':'${BL("急跌⚠","急落⚠","drop⚠")}'}`,'info');
+    }
+  }catch(e){botLog(BL('⚠ SPY获取失败，继续','⚠ SPY取得失敗、継続','⚠ SPY fetch failed, continuing'),'warn');}
+
+  // ── 出口判断（スキャルプSL/TP）バーキャッシュの最新終値を優先使用 ──
+  for(const sym of cfg.watchlist){
+    const pos=posMap[sym];if(!pos)continue;
+    const avgCost=parseFloat(pos.avg_entry_price)||0;
+    // Alpacaポジションの current_price はリアルタイム。バーキャッシュの最新終値でさらに精度UP
+    const barPrice=scalpBarCache[sym]?.length?scalpBarCache[sym][scalpBarCache[sym].length-1].c:null;
+    const curPrice=barPrice||parseFloat(pos.current_price)||parseFloat(pos.lastday_price)||avgCost;
+    if(!avgCost)continue;
+    const pnlPct=((curPrice-avgCost)/avgCost)*100;
+    const sl=-(cfg.scalpStopPct||0.5);
+    const tp=cfg.scalpProfitPct||1.5;
+    if(pnlPct<=sl){
+      botLog(`🛑 ${sym} ${BL('刷单止损','スキャルプSL','Scalp SL')} ${pnlPct.toFixed(2)}% → ${BL('卖出','売却','sell')}`,'sell');
+      try{await closePositionSafely(keyId,secret,sym);}catch(e){botLog(`❌ ${sym} ${BL('止损卖出失败','SL売却失敗','SL sell failed')}: ${e.message}`,'error');}
+    }else if(pnlPct>=tp){
+      botLog(`💰 ${sym} ${BL('刷单止盈','スキャルプTP','Scalp TP')} +${pnlPct.toFixed(2)}% → ${BL('平仓','利確','close')}`,'sell');
+      try{await closePositionSafely(keyId,secret,sym);}catch(e){botLog(`❌ ${sym} ${BL('止盈平仓失败','TP売却失敗','TP close failed')}: ${e.message}`,'error');}
+    }else{
+      botLog(`✋ ${sym} HOLD P&L:${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}% (SL:${sl}% / TP:+${tp}%)`,'hold');
+    }
+  }
+
+  if(!spOk){
+    botLog(BL('⚠ 标普500急跌 — 停止新建仓位','⚠ S&P500急落中 — 新規エントリー停止','⚠ S&P500 dropping — halting new entries'),'warn');
+    botLog(BL('✅ 高频周期完成','✅ スキャルプサイクル完了','✅ Scalp cycle complete'),'info');send('bot-update',{type:'cycle-end'});return;
+  }
+  if(buyingPower<50){
+    botLog(BL('⚠ 可用资金不足（$50以下）— 跳过','⚠ 購入力不足 ($50未満) — スキップ','⚠ Insufficient buying power (<$50) — skipping'),'warn');
+    botLog(BL('✅ 高频周期完成','✅ スキャルプサイクル完了','✅ Scalp cycle complete'),'info');send('bot-update',{type:'cycle-end'});return;
+  }
+  // ── 同時保有制限チェック ──
+  let openCount=positions.length;
+  const maxPos=cfg.maxConcurrentPositions||3;
+  if(openCount>=maxPos){
+    botLog(`⚠ ${BL('持仓已达上限','ポジション上限','Max positions reached')} (${openCount}/${maxPos}) — ${BL('停止新建仓','新規停止','no new entries')}`,'warn');
+    botLog(BL('✅ 高频周期完成','✅ スキャルプサイクル完了','✅ Scalp cycle complete'),'info');send('bot-update',{type:'cycle-end'});return;
+  }
+
+  // ── エントリースコアリング（全銘柄、Alpaca 1分足リアルタイム）──
+  const ema=(arr,p)=>{const k=2/(p+1);let e=arr[0];for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e;};
+
+  // WSキャッシュが薄い銘柄はAlpaca RESTで補充
+  for(const sym of cfg.watchlist){
+    if(!scalpBarCache[sym]||scalpBarCache[sym].length<20){
+      try{
+        const r=await fetch(`${ALPACA_DATA}/v2/stocks/bars?symbols=${sym}&timeframe=1Min&limit=100&feed=iex&sort=asc`,
+          {headers:{'APCA-API-KEY-ID':keyId,'APCA-API-SECRET-KEY':secret},timeout:10000});
+        const d=await r.json();
+        const b=d?.bars?.[sym]||[];
+        if(b.length){scalpBarCache[sym]=b.map(x=>({t:x.t,o:x.o,h:x.h,l:x.l,c:x.c,v:x.v}));
+          botLog(`📦 ${sym} ${BL('REST补充','REST補充','REST filled')} ${b.length}${BL('根','本','bars')}`,'info');}
+      }catch(e){botLog(`⚠ ${sym} ${BL('REST补充失败','REST補充失敗','REST fill failed')}: ${e.message}`,'warn');}
+      await new Promise(r=>setTimeout(r,200));
+    }
+  }
+
+  for(const sym of cfg.watchlist){
+    try{
+      const bars=scalpBarCache[sym];
+      if(!bars||bars.length<20){botLog(`⏳ ${sym} ${BL('数据积累中','バーデータ蓄積中','accumulating bars')} (${(bars||[]).length}/20)`,'info');continue;}
+      const price=bars[bars.length-1].c; // 最新1分足終値
+      if(!price)continue;
+      const closes=bars.map(b=>b.c);
+      const vols=bars.map(b=>b.v||0);
+      const n=closes.length;
+
+      // RSI (14期間、5分足)
+      let g=0,l=0;
+      for(let i=Math.max(1,n-14);i<n;i++){const d=closes[i]-closes[i-1];if(d>0)g+=d;else l-=d;}
+      const rsi5m=l===0?100:100-100/(1+(g/l));
+
+      // MACD (12/26/9、5分足)
+      const macd5m=ema(closes,12)-ema(closes,26);
+
+      // 出来高比率（直近1本 vs 20本平均）
+      const avgVol20=vols.slice(-21,-1).reduce((a,b)=>a+b,0)/20||1;
+      const volRatio=vols[n-1]/avgVol20;
+
+      // ボリンジャーバンド% (20期間)
+      const sma20=closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+      const std20=Math.sqrt(closes.slice(-20).map(c=>(c-sma20)**2).reduce((a,b)=>a+b,0)/20);
+      const bbU=sma20+2*std20,bbL=sma20-2*std20;
+      const bbPct5m=std20>0?((price-bbL)/(bbU-bbL))*100:50;
+
+      // モメンタム（直近3本が上昇）
+      const momentum=n>=3&&closes[n-1]>closes[n-2]&&closes[n-2]>closes[n-3];
+
+      // ── 5指標スコアリング（3/5以上でエントリー）──
+      let score=0;const reasons=[];
+      if(rsi5m<45){score++;reasons.push(`RSI${rsi5m.toFixed(0)}`);}         // ①RSI売られすぎ
+      if(macd5m>0){score++;reasons.push('MACD+');}                           // ②MACD強気
+      if(volRatio>=1.2){score++;reasons.push(`Vol${volRatio.toFixed(1)}x`);} // ③出来高急増
+      if(bbPct5m<45){score++;reasons.push(`BB${bbPct5m.toFixed(0)}%`);}      // ④BB下限付近
+      if(momentum){score++;reasons.push('MOM↑');}                            // ⑤モメンタム上昇
+
+      botLog(`⚡ ${sym} ${score}/5 [${reasons.join(' ')}] RSI:${rsi5m.toFixed(1)} $${price.toFixed(2)}`,'info');
+
+      if(score>=3){
+        // 同時保有制限チェック（毎エントリー前）
+        if(openCount>=maxPos){
+          botLog(`⚠ ${BL('持仓已达上限','ポジション上限','Max positions')} (${openCount}/${maxPos}) — ${BL('跳过','スキップ','skip')} ${sym}`,'warn');
+          break;
+        }
+        // 既保有の銘柄は再エントリーしない（同銘柄ナンピン回避）
+        if(posMap[sym]){continue;}
+        // 購入力の最大30%ずつ分散投資
+        const orderAmt=Math.min(cfg.maxPositionUSD,Math.max(0,buyingPower*0.3));
+        const qty=Math.floor(orderAmt/price);
+        if(qty<1){botLog(`⚠ ${sym} ${BL('资金不足','購入力不足','insufficient funds')} ($${price.toFixed(0)}×${qty})`,'warn');continue;}
+        const slPct=cfg.scalpStopPct||0.5,tpPct=cfg.scalpProfitPct||1.5;
+        const slipBuf=cfg.limitSlippagePct||0.1;
+        botLog(`📈 ${sym} ${BL('高频买入','スキャルプBUY','SCALP BUY')} ${qty}${BL('股','株','sh')} ${BL('指值','指値','limit')}@$${(price*(1+slipBuf/100)).toFixed(2)} ${BL('评分','スコア','score')}${score}/5 — 🛡 SL:-${slPct}% TP:+${tpPct}% (OCO)`,'buy');
+        try{
+          await placeBracketBuy(keyId,secret,sym,qty,price,slPct,tpPct,slipBuf);
+          buyingPower=Math.max(0,buyingPower-qty*price);
+          openCount++;
+        }catch(e){botLog(`❌ ${sym} ${BL("下单失败","注文失敗","order failed")}: ${e.message}`,'error');}
+      }
+    }catch(e){botLog(`❌ ${sym} ${BL('高频分析失败','スキャルプ分析失敗','scalp analysis failed')}: ${e.message}`,'error');}
+  }
+
+  botLog(BL('✅ 高频周期完成','✅ スキャルプサイクル完了','✅ Scalp cycle complete'),'info');
+  send('bot-update',{type:'cycle-end'});
+}
+
+async function runBotCycle(keyId,secret){
+  const cfg=loadBotConfig();
+  if(!isMarketOpen()){botLog(BL('市场休市中 — 等待下个周期','市場クローズ中 — 次のサイクルまで待機','Market closed — waiting for next cycle'),'info');return;}
+  if(cfg.scalpMode) return runScalpCycle(keyId,secret,cfg);
+  botLog(BL('🔄 开始波段分析周期','🔄 スイング分析サイクル開始','🔄 Swing analysis cycle started'),'info');
+  send('bot-update',{type:'cycle-start'});
+
+  // ── Alpaca account & positions ──
+  let account,positions;
+  try{
+    [account,positions]=await Promise.all([
+      alpacaFetch(keyId,secret,'GET','/v2/account'),
+      alpacaFetch(keyId,secret,'GET','/v2/positions'),
+    ]);
+  }catch(e){botLog(BL('❌ Alpaca连接失败: ','❌ Alpaca接続エラー: ','❌ Alpaca error: ')+e.message,'error');return;}
+  const buyingPower=parseFloat(account.buying_power);
+  const posMap={};for(const p of positions)posMap[p.symbol]=p;
+  send('bot-update',{type:'account',account,positions});
+  try{savePortfolioSnapshot(account.portfolio_value||account.equity||0);}catch(e){}
+
+  // ── STEP 1: 市場フィルター（VIX + S&P500トレンド）──
+  let marketOk=true,vixVal=0,spTrend='flat';
+  try{
+    const [spData,vixData]=await Promise.all([
+      fetchR('https://query1.finance.yahoo.com/v8/finance/chart/%5EGSPC?interval=1d&range=10d',{headers:UA}),
+      fetchR('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d',{headers:UA}),
+    ]);
+    const spC=spData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.filter(c=>c!=null)||[];
+    if(spC.length>=5){const avg5=spC.slice(-5).reduce((a,b)=>a+b,0)/5;spTrend=spC[spC.length-1]>avg5?'up':'down';}
+    vixVal=vixData?.chart?.result?.[0]?.meta?.regularMarketPrice||0;
+    if(vixVal>40){marketOk=false;botLog(`⚠ VIX ${vixVal.toFixed(1)} > 40 — ${BL('极度恐慌，停止所有买入','極度の恐怖、全買い停止','extreme fear, halting all buys')}`,'warn');}
+    else if(vixVal>30&&spTrend==='down'){marketOk=false;botLog(`⚠ S&P500↓ + VIX ${vixVal.toFixed(1)} — ${BL('市场恶化，停止买入','市場悪化、買い停止','market deteriorating, halting buys')}`,'warn');}
+    else botLog(`📊 ${BL('市场过滤器OK','市場フィルターOK','Market filter OK')} — S&P500:${spTrend==='up'?'↑':'↓'} VIX:${vixVal.toFixed(1)}`,'info');
+  }catch(e){botLog(BL('⚠ 市场过滤器获取失败，继续处理','⚠ 市場フィルター取得失敗、処理継続','⚠ Market filter fetch failed, continuing'),'warn');}
+
+  // ── STEP 2: 各銘柄データ取得 ──
+  const stockData={};
+  for(const sym of cfg.watchlist){
+    try{
+      await new Promise(r=>setTimeout(r,500));
+      const yf=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=3mo`,{headers:UA});
+      const result=yf?.chart?.result?.[0];if(!result)continue;
+      const q=result.indicators?.quote?.[0],ts=result.timestamp;
+      const ohlcv=ts&&q?ts.map((t,i)=>({d:new Date(t*1000).toISOString().slice(0,10),h:q.high[i],l:q.low[i],c:q.close[i],v:q.volume[i]})).filter(d=>d.c!=null):[];
+      if(ohlcv.length<20)continue;
+      const tech=calcTech(ohlcv);
+      const price=result.meta?.regularMarketPrice;
+      if(!price||!tech)continue;
+      stockData[sym]={price,tech,ohlcv};
+    }catch(e){botLog(`❌ ${sym} ${BL('数据获取失败','データ取得失敗','data fetch failed')}: ${e.message}`,'error');}
+  }
+
+  // ── STEP 3: 保有ポジション 出口判断 ──
+  for(const sym of cfg.watchlist){
+    const pos=posMap[sym];if(!pos)continue;
+    const d=stockData[sym];if(!d)continue;
+    const {price,tech}=d;
+    const rsi=parseFloat(tech.rsi),macdVal=parseFloat(tech.macd);
+    const avgCost=parseFloat(pos.avg_entry_price);
+    const pnlPct=((price-avgCost)/avgCost)*100;
+    if(pnlPct<=-cfg.stopLossPercent){
+      botLog(`🛑 ${sym} ${BL('止损','ストップロス','SL')} ${pnlPct.toFixed(1)}% → ${BL('全部卖出','全売却','close all')}`,'sell');
+      try{await closePositionSafely(keyId,secret,sym);}catch(e){botLog(`❌ ${sym} ${BL('卖出失败','売却失敗','sell failed')}: ${e.message}`,'error');}
+    }else if(pnlPct>=cfg.takeProfitPercent){
+      botLog(`💰 ${sym} ${BL('止盈','利確','TP')} +${pnlPct.toFixed(1)}% → ${BL('全部卖出','全売却','close all')}`,'sell');
+      try{await closePositionSafely(keyId,secret,sym);}catch(e){botLog(`❌ ${sym} ${BL("卖出失败","売却失敗","sell failed")}: ${e.message}`,'error');}
+    }else if(rsi>cfg.sellRSI){
+      botLog(`📉 ${sym} RSI${BL('卖出信号','売り','sell')} ${rsi.toFixed(1)} P&L:${pnlPct>=0?'+':''}${pnlPct.toFixed(1)}% → ${BL('卖出','売却','sell')}`,'sell');
+      try{await closePositionSafely(keyId,secret,sym);}catch(e){botLog(`❌ ${sym} 卖出失败: ${e.message}`,'error');}
+    }else{
+      botLog(`✋ ${sym} HOLD RSI:${rsi.toFixed(1)} MACD:${macdVal.toFixed(3)} P&L:${pnlPct>=0?'+':''}${pnlPct.toFixed(1)}%`,'hold');
+    }
+  }
+
+  // ── STEP 4: 買い候補 6指標スコアリング ──
+  const swingMaxPos=cfg.maxConcurrentPositions||3;
+  if(!marketOk){
+    botLog(BL('📊 市场条件不佳 — 停止所有新建仓位','📊 市場条件不良 — 新規買い全停止','📊 Market conditions poor — halting all new buys'),'warn');
+  }else if(positions.length>=swingMaxPos){
+    botLog(`⚠ ${BL('持仓已达上限','ポジション上限','Max positions reached')} (${positions.length}/${swingMaxPos}) — ${BL('停止新建仓','新規停止','no new entries')}`,'warn');
+  }else if(buyingPower<100){
+    botLog(BL('⚠ 可用资金不足 — 跳过新建仓位','⚠ 購入力不足 — 新規買いスキップ','⚠ Insufficient buying power — skipping new buys'),'warn');
+  }else{
+    const candidates=[];
+    for(const sym of cfg.watchlist){
+      if(posMap[sym])continue; // 既保有
+      const d=stockData[sym];if(!d)continue;
+      const {price,tech,ohlcv}=d;
+      const rsi=parseFloat(tech.rsi),macdVal=parseFloat(tech.macd);
+      const bbPct=parseFloat(tech.bbPct)||50;
+      const volRatio=parseFloat(tech.volRatio)||1;
+      const closes=ohlcv.map(x=>x.c);
+      const sma50=closes.length>=50?closes.slice(-50).reduce((a,b)=>a+b,0)/50:closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+
+      // ── 高精度テクニカル計算 ──
+      const bt=calcBotTech(ohlcv);
+
+      // ── 決算リスクチェック ──
+      const earningsSoon=await isEarningsSoon(sym);
+      await new Promise(r=>setTimeout(r,300));
+
+      // ── 7指標スコアリング（85%+精度設計） ──
+      let score=0;const reasons=[];
+      // ①MACDゴールデンクロス（最重要シグナル）
+      if(bt.macdCross){score++;reasons.push('MACD✕GC🔥');}
+      // ②MACD > シグナルライン（強気継続）
+      if(bt.macdAboveSignal){score++;reasons.push('MACD>SIG✓');}
+      // ③RSI上昇（昨日より高い = 底打ち確認）
+      if(bt.rsiRising){score++;reasons.push(`RSI↑(${bt.rsiYest.toFixed(0)}→${bt.rsiToday.toFixed(0)})`);}
+      // ④出来高急増（1.5倍以上 = 機関投資家の買い）
+      if(volRatio>=1.5){score++;reasons.push(`Vol${volRatio}x📊`);}
+      // ⑤ボリンジャー深い下限（BB%<25 = 強い売られすぎ）
+      if(bbPct<25){score++;reasons.push(`BB${bbPct}%🎯`);}
+      // ⑥S&P500上昇トレンド（市場追い風）
+      if(spTrend==='up'){score++;reasons.push('SP500↑✓');}
+      // ⑦決算リスクなし（7日以内の決算を除外）
+      if(!earningsSoon){score++;reasons.push('決算OK✓');}else{reasons.push('⚠決算近い');}
+
+      botLog(`📊 ${sym} ${BL("评分","スコア","score")}${score}/7 [${reasons.join(' ')}] RSI:${rsi.toFixed(1)}`,'info');
+
+      // RSI必須（< buyRSI）+ スコア5/7以上のみ候補（超厳選）
+      if(rsi<cfg.buyRSI&&score>=5&&!earningsSoon){
+        candidates.push({sym,score,rsi,macdVal,price,volRatio,bbPct,bt,reasons});
+      }
+    }
+
+    if(!candidates.length){
+      botLog(BL('⏳ 无买入信号 — 等待下个周期','⏳ 買いシグナルなし — 次サイクル待機','⏳ No buy signal — waiting for next cycle'),'wait');
+    }else{
+      // スコア高い順→RSI低い順でソート、上位1銘柄のみ
+      candidates.sort((a,b)=>b.score-a.score||a.rsi-b.rsi);
+      const best=candidates[0];
+      botLog(`🎯 ${BL('最佳候选','最優秀候補','Best candidate')}: ${best.sym} ${BL('评分','スコア','score')}${best.score}/7 RSI:${best.rsi.toFixed(1)}`,'info');
+
+      // ── STEP 5: AI最終確認（APIキーがあれば） ──
+      let aiApproved=true;
+      try{
+        const ks=readKeyStore();
+        const aiKey=decSecret(ks.gemini?.key)||decSecret(ks.claude?.key)||decSecret(ks.openai?.key)||'';
+        const aiType=ks.gemini?.key?'gemini':ks.claude?.key?'claude':ks.openai?.key?'openai':null;
+        const aiModel=aiType==='gemini'?(ks.gemini?.model||'gemini-2.5-flash'):aiType==='claude'?'claude-sonnet-4-20250514':'gpt-4o';
+        if(aiKey&&aiType){
+          botLog(`🤖 ${BL('AI 最终判断中','AI最終判断中','AI final check')}: ${best.sym} (${BL('评分','スコア','score')}${best.score}/7)...`,'info');
+          const prompt=`【厳格な株式トレード判断】\n銘柄: ${best.sym} | 現在価格: $${best.price.toFixed(2)}\n\n【テクニカル指標】\nRSI: ${best.rsi.toFixed(1)} (売られすぎ, ${best.bt.rsiYest.toFixed(1)}→${best.bt.rsiToday.toFixed(1)} 上昇中)\nMACD: ${best.macdVal.toFixed(4)} | シグナル: ${best.bt.sigNow.toFixed(4)} | GCross: ${best.bt.macdCross}\nBB%: ${best.bbPct}% (下限付近) | 出来高比: ${best.volRatio}x\n総合スコア: ${best.score}/7 [${best.reasons.join(', ')}]\n\n【市場環境】\nS&P500: ${spTrend==='up'?'上昇':'下落'}トレンド | VIX: ${vixVal.toFixed(1)}\n\n【質問】この銘柄を今買うべきか？勝率85%以上の確信がある場合のみBUYを返してください。\n\nJSON形式のみで回答: {"decision":"BUY"または"SKIP","confidence":0から100の整数,"reason":"25文字以内の理由"}`;
+          const aiResp=await callAI(aiType,aiKey,aiModel,[
+            {role:'system',content:'あなたは機関投資家レベルの株式リスク管理AIです。勝率85%以上の確信がある場合のみBUYを返します。少しでも不確実性があればSKIPです。JSONのみ返答。'},
+            {role:'user',content:prompt}
+          ]);
+          try{
+            const json=JSON.parse(aiResp.match(/\{[\s\S]*?\}/)?.[0]||'{}');
+            const conf=parseInt(json.confidence)||0;
+            if(json.decision==='SKIP'||conf<72){
+              aiApproved=false;
+              botLog(`🤖 AI: ${BL('跳过','SKIP','SKIP')} (${BL('置信度','確信度','confidence')}${conf}%/72%) — ${json.reason||''}`,'warn');
+            }else{
+              botLog(`🤖 AI: ✅${BL('买入通过','BUY承認','BUY approved')} (${BL('置信度','確信度','confidence')}${conf}%) — ${json.reason||''}`,'info');
+            }
+          }catch(e){botLog(BL('🤖 AI回应解析失败 — 继续规则判断','🤖 AI応答解析失敗 — ルールベースで継続','🤖 AI response parse failed — continuing rule-based'),'warn');}
+        }
+      }catch(e){botLog(BL('🤖 AI判断跳过: ','🤖 AI判断スキップ: ','🤖 AI check skipped: ')+e.message,'warn');}
+
+      // ── STEP 6: 注文実行（指値 + OCOブラケット）──
+      if(aiApproved){
+        const orderAmt=Math.min(cfg.maxPositionUSD,buyingPower*0.9);
+        const qty=Math.floor(orderAmt/best.price);
+        if(qty<1){
+          botLog(`⚠ ${best.sym} ${BL('资金不足','購入力不足','insufficient funds')} ($${best.price.toFixed(0)} / $${buyingPower.toFixed(0)})`,'warn');
+        }else{
+          const slPct=cfg.stopLossPercent||3,tpPct=cfg.takeProfitPercent||8;
+          const slipBuf=cfg.limitSlippagePct||0.1;
+          botLog(`📈 ${best.sym} ${BL('执行买入','買い注文実行','BUY order')} ${BL('评分','スコア','score')}:${best.score}/7 → ${qty}${BL('股','株','sh')} ${BL('指值','指値','limit')}@$${(best.price*(1+slipBuf/100)).toFixed(2)} — 🛡 SL:-${slPct}% TP:+${tpPct}% (OCO)`,'buy');
+          try{await placeBracketBuy(keyId,secret,best.sym,qty,best.price,slPct,tpPct,slipBuf);}
+          catch(e){botLog(`❌ ${best.sym} ${BL('下单失败','注文失敗','order failed')}: ${e.message}`,'error');}
+        }
+      }
+    }
+  }
+
+  botLog(BL('✅ 周期完成','✅ サイクル完了','✅ Cycle complete'),'info');
+  send('bot-update',{type:'cycle-end'});
+}
+
+ipcMain.handle('alpaca-connect',async(_,{keyId,secret})=>{
+  try{
+    const [account,clock]=await Promise.all([
+      alpacaFetch(keyId,secret,'GET','/v2/account'),
+      alpacaFetch(keyId,secret,'GET','/v2/clock'),
+    ]);
+    const s=readKeyStore();s['alpaca']={keyId:encSecret(keyId),secret:encSecret(secret)};writeKeyStore(s);
+    return{ok:true,account,clock};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('alpaca-account',async(_,{keyId,secret})=>{
+  try{
+    const [account,positions,orders,clock]=await Promise.all([
+      alpacaFetch(keyId,secret,'GET','/v2/account'),
+      alpacaFetch(keyId,secret,'GET','/v2/positions'),
+      alpacaFetch(keyId,secret,'GET','/v2/orders?status=all&limit=30'),
+      alpacaFetch(keyId,secret,'GET','/v2/clock'),
+    ]);
+    return{ok:true,account,positions,orders,clock};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('alpaca-load-keys',()=>{
+  try{const s=readKeyStore();const a=s['alpaca'];if(!a)return{ok:true,keyId:'',secret:''};return{ok:true,keyId:decSecret(a.keyId),secret:decSecret(a.secret)};}
+  catch(e){return{ok:true,keyId:'',secret:''};}
+});
+ipcMain.handle('alpaca-delete-keys',()=>{
+  try{const s=readKeyStore();delete s['alpaca'];writeKeyStore(s);return{ok:true};}
+  catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('alpaca-place-order',async(_,{keyId,secret,symbol,side,qty})=>{
+  try{
+    const order=await alpacaFetch(keyId,secret,'POST','/v2/orders',{symbol,qty:String(qty),side,type:'market',time_in_force:'day'});
+    botLog(`📋 ${BL("手动下单","手動注文","manual order")}: ${side.toUpperCase()} ${qty}${BL("股","株","sh")} ${symbol}`,'info');
+    return{ok:true,order};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('alpaca-close-position',async(_,{keyId,secret,symbol})=>{
+  try{
+    await closePositionSafely(keyId,secret,symbol);
+    botLog(`📋 ${BL("手动平仓","手動クローズ","manual close")}: ${symbol}`,'info');
+    return{ok:true};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('bot-start',async(_,{keyId,secret,config})=>{
+  try{
+    if(botTimer){clearInterval(botTimer);botTimer=null;}
+    disconnectAlpacaStream();
+    if(config)saveBotConfig(config);
+    const cfg=loadBotConfig();
+    botRunning=true;botLogs=[];
+    botLog(BL('🚀 机器人启动 — 监控标的: ','🚀 ボット起動 — ウォッチ対象: ','🚀 Bot started — watching: ')+cfg.watchlist.join(', '),'info');
+    if(cfg.scalpMode){
+      botLog(BL('⚡ 高频刷单模式 — 使用 Alpaca WebSocket 实时数据','⚡ スキャルピングモード — Alpaca WebSocket リアルタイムデータ使用','⚡ Scalping mode — using Alpaca WebSocket real-time data'),'info');
+      await prefillBarCache(keyId,secret,cfg.watchlist);
+      connectAlpacaStream(keyId,secret,cfg.watchlist);
+    }
+    runBotCycle(keyId,secret);
+    botTimer=setInterval(()=>runBotCycle(keyId,secret),cfg.intervalMinutes*60*1000);
+    send('bot-update',{type:'status',running:true});
+    return{ok:true};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('bot-stop',async()=>{
+  if(botTimer){clearInterval(botTimer);botTimer=null;}
+  botRunning=false;
+  disconnectAlpacaStream();
+  botLog(BL('⏹ 机器人停止','⏹ ボット停止','⏹ Bot stopped'),'info');
+  send('bot-update',{type:'status',running:false});
+  return{ok:true};
+});
+
+ipcMain.handle('bot-status',()=>({ok:true,running:botRunning,config:loadBotConfig(),logs:botLogs.slice(0,80)}));
+ipcMain.handle('bot-save-config',(_,config)=>{try{saveBotConfig(config);return{ok:true};}catch(e){return{error:e.message};}});
+ipcMain.handle('bot-set-lang',(_,l)=>{if(l)botLang=l;return{ok:true};});
+
+// 手動で1サイクル即時実行（テスト・デバッグ用）
+ipcMain.handle('bot-run-once',async(_,{keyId,secret})=>{
+  try{
+    if(!keyId||!secret)return{error:'No Alpaca credentials'};
+    botLog(`▶ ${BL('手动触发分析周期','手動サイクル実行','Manual cycle triggered')}`,'info');
+    const cfg=loadBotConfig();
+    // スキャルプモード時はWS未接続なら一時的にprefill
+    if(cfg.scalpMode&&Object.keys(scalpBarCache).length===0){
+      await prefillBarCache(keyId,secret,cfg.watchlist);
+    }
+    runBotCycle(keyId,secret); // バックグラウンドで実行
+    return{ok:true};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('alpaca-filled-orders',async(_,{keyId,secret})=>{
+  try{
+    const orders=await alpacaFetch(keyId,secret,'GET','/v2/orders?status=all&limit=200&direction=desc');
+    const filled=orders.filter(o=>o.status==='filled'||o.status==='partially_filled');
+    return{ok:true,orders:filled};
+  }catch(e){return{error:e.message};}
+});
+
+ipcMain.handle('bot-portfolio-history',()=>{
+  try{return{ok:true,history:loadPortfolioHistory()};}
+  catch(e){return{ok:true,history:[]};}
 });

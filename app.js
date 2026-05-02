@@ -13,19 +13,64 @@ const L={
     btn_save:'保存',btn_fetch:'取得',btn_add:'+ 追加',btn_update:'更新',btn_analyze:'分析',
     lbl_lang:'言語',lbl_free:'無料',lbl_ticker:'ティッカーを入力',lbl_history:'分析履歴なし',lbl_symbol:'銘柄変更',lbl_newchat:'新規チャット',lbl_analyzing:'分析中...',lbl_briefing:'おはようございます',
     pnl_market:'マーケット',pnl_portfolio:'ポートフォリオ',pnl_history:'履歴',pnl_watchlist:'ウォッチリスト',wlcApi:'APIキー設定',wlcMarket:'銘柄を調べる',wlcWatch:'ウォッチ管理',wlcQuick:'クイック分析',wlcQuickDesc:'場中の方向感とリスクを素早く確認。',wlcDeep:'詳細分析',wlcDeepDesc:'複数エージェントで材料、リスク、観察条件を整理。',wlcLive:'リアルタイム監視',wlcLiveDesc:'価格、RSI、MACD、異常変動を検知。',wlcPort:'ポートフォリオ概況',wlcPortDesc:'保有・監視銘柄、決算、リスク温度を確認。',
-    entry_now:'即エントリー可能',entry_wait:'条件待ち',entry_avoid:'回避推奨',dash_title:'今日の概況',why_matters:'あなたに関係する理由',time_horizon:'時間軸',risk_level:'リスク'},
+    entry_now:'即エントリー可能',entry_wait:'条件待ち',entry_avoid:'回避推奨',dash_title:'今日の概況',why_matters:'あなたに関係する理由',time_horizon:'時間軸',risk_level:'リスク',
+    bot_tab_dash:'ダッシュボード',bot_tab_hist:'取引履歴',bot_tab_cfg:'設定・ログ',
+    bot_start:'▶ ボット起動',bot_stop:'■ 停止',bot_running:'ボット稼働中',bot_no_pos:'ポジションなし',bot_open_pos:'オープンポジション',
+    bot_chart_title:'資産推移',bot_no_data:'データなし（ボット稼働後に記録されます）',
+    bot_trades:'全取引履歴',bot_no_trades:'取引履歴なし',bot_loading:'読み込み中…',
+    bot_total:'総取引回数',bot_buysell:'買 / 売',bot_vol:'総取引額',
+    bot_cfg_title:'ボット設定',bot_cfg_save:'設定を保存',bot_log:'取引ログ',bot_log_empty:'ログなし',
+    bot_watch:'ウォッチ対象',bot_maxpos:'最大ポジション($)',bot_intv:'間隔(分)',
+    bot_buy_rsi:'買い RSI <',bot_sell_rsi:'売り RSI >',bot_sl:'ストップロス(%)',bot_tp:'利確(%)',
+    bot_sell_btn:'売却',bot_connect:'接続して確認',bot_setup_desc:'Alpaca Paper Trading（無料仮想口座）でAIが自動売買します。',
+    bot_lbl_portval:'総資産',bot_lbl_pnl:'本日損益',bot_lbl_bp:'余力',bot_lbl_pos:'ポジション数',
+    bot_not_connected:'接続してください',bot_connecting:'接続中…',bot_enter_key:'キーを入力してください',
+    bot_th_date:'日時',bot_th_sym:'銘柄',bot_th_side:'売買',bot_th_qty:'株数',bot_th_price:'約定価格',bot_th_total:'金額',
+    bot_saved:'✓ 保存済み',bot_next_prefix:'次',bot_shares:'株',
+    bot_scalp_label:'⚡ スキャルピングモード',bot_scalp_desc:'5分足・2分サイクルで何十回も取引。スコア3/5で自動エントリー。AIなし。',bot_scalp_sl:'スキャルプSL(%)',bot_scalp_tp:'スキャルプTP(%)',
+    bot_run_once:'⚡ 即時実行',bot_running_cycle:'実行中…',bot_max_concurrent:'🔒 同時保有上限',bot_slip:'📐 指値スリッページ(%)'},
   en:{ph:'Ask about a ticker or chart',li:'Reply in English.',reason:'Reasoning',result:'Analysis',summary:'Summary',conclusion:'Conclusion',buy:'Bullish ▲',sell:'Bearish ▼',hold:'Neutral ◆',wait:'Watch ◇',wlcTitle:'AI Stock Research Assistant',wlc:'Enter a ticker or connect TradingView to understand market context, risks, catalysts, and observation points.',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
     tb_capture:'Screen',tb_chart:'Chart Analysis',tb_quick:'Quick Analysis',tb_full:'Deep Analysis',tb_consensus:'AI Consensus',tb_monitor:'Live Monitor',
     btn_save:'Save',btn_fetch:'Fetch',btn_add:'+ Add',btn_update:'Refresh',btn_analyze:'Analyze',
     lbl_lang:'Language',lbl_free:'Free',lbl_ticker:'Enter ticker',lbl_history:'No history',lbl_symbol:'Change symbol',lbl_newchat:'New Chat',lbl_analyzing:'Analyzing...',lbl_briefing:'Good morning',
     pnl_market:'Market',pnl_portfolio:'Portfolio',pnl_history:'History',pnl_watchlist:'Watchlist',wlcApi:'Set API Key',wlcMarket:'Look Up Stock',wlcWatch:'Manage Watchlist',wlcQuick:'Quick Analysis',wlcQuickDesc:'Fast read on direction and risk during market hours.',wlcDeep:'Deep Analysis',wlcDeepDesc:'Multi-agent research on catalysts, risks, and observation conditions.',wlcLive:'Live Monitor',wlcLiveDesc:'Watch price, RSI, MACD, and abnormal moves.',wlcPort:'Portfolio Brief',wlcPortDesc:'Track holdings, watchlist, earnings, and risk temperature.',
-    entry_now:'Ready to enter',entry_wait:'Conditional',entry_avoid:'Avoid',dash_title:'Today\'s Overview',why_matters:'Why it matters to you',time_horizon:'Time Horizon',risk_level:'Risk Level'},
+    entry_now:'Ready to enter',entry_wait:'Conditional',entry_avoid:'Avoid',dash_title:'Today\'s Overview',why_matters:'Why it matters to you',time_horizon:'Time Horizon',risk_level:'Risk Level',
+    bot_tab_dash:'Dashboard',bot_tab_hist:'Trade History',bot_tab_cfg:'Settings & Log',
+    bot_start:'▶ Start Bot',bot_stop:'■ Stop',bot_running:'Bot Running',bot_no_pos:'No positions',bot_open_pos:'Open Positions',
+    bot_chart_title:'Asset History',bot_no_data:'No data yet (recorded after bot runs)',
+    bot_trades:'All Trades',bot_no_trades:'No trades yet',bot_loading:'Loading…',
+    bot_total:'Total Trades',bot_buysell:'Buy / Sell',bot_vol:'Total Volume',
+    bot_cfg_title:'Bot Settings',bot_cfg_save:'Save Settings',bot_log:'Trade Log',bot_log_empty:'No logs',
+    bot_watch:'Watchlist',bot_maxpos:'Max Position ($)',bot_intv:'Interval (min)',
+    bot_buy_rsi:'Buy RSI <',bot_sell_rsi:'Sell RSI >',bot_sl:'Stop Loss (%)',bot_tp:'Take Profit (%)',
+    bot_sell_btn:'Sell',bot_connect:'Connect & Verify',bot_setup_desc:'AI auto-trades via Alpaca Paper Trading (free virtual account).',
+    bot_lbl_portval:'Portfolio Value',bot_lbl_pnl:'Today P&L',bot_lbl_bp:'Buying Power',bot_lbl_pos:'Positions',
+    bot_not_connected:'Please connect first',bot_connecting:'Connecting…',bot_enter_key:'Please enter API keys',
+    bot_th_date:'Date/Time',bot_th_sym:'Symbol',bot_th_side:'Side',bot_th_qty:'Qty',bot_th_price:'Avg Price',bot_th_total:'Total',
+    bot_saved:'✓ Saved',bot_next_prefix:'Next',bot_shares:'sh',
+    bot_scalp_label:'⚡ Scalping Mode',bot_scalp_desc:'5m bars, 2-min cycles, dozens of trades/day. Entry on score 3/5. No AI (speed mode).',bot_scalp_sl:'Scalp SL (%)',bot_scalp_tp:'Scalp TP (%)',
+    bot_run_once:'⚡ Run Now',bot_running_cycle:'Running…',bot_max_concurrent:'🔒 Max Concurrent Positions',bot_slip:'📐 Limit Slippage (%)'},
   zh:{ph:'输入股票代码、图表问题或研究问题',li:'用中文回答。',reason:'分析理由',result:'分析结果',summary:'总结',conclusion:'结论',buy:'偏强 ▲',sell:'偏弱 ▼',hold:'中性 ◆',wait:'观察 ◇',wlcTitle:'AI 股票研究助手',wlc:'输入股票代码或连接 TradingView，快速看懂行情摘要、风险提示、催化因素和观察条件。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'工具',
     tb_capture:'截屏',tb_chart:'图表分析',tb_quick:'快速分析',tb_full:'深度分析',tb_consensus:'多模型共识',tb_monitor:'实时监控',
     btn_save:'保存',btn_fetch:'获取',btn_add:'+ 添加',btn_update:'刷新',btn_analyze:'分析',
     lbl_lang:'语言',lbl_free:'免费',lbl_ticker:'输入代码',lbl_history:'无记录',lbl_symbol:'切换代码',lbl_newchat:'新对话',lbl_analyzing:'分析中...',lbl_briefing:'早上好',
     pnl_market:'市场',pnl_portfolio:'组合',pnl_history:'历史',pnl_watchlist:'自选股',wlcApi:'设置 API Key',wlcMarket:'查询股票',wlcWatch:'管理自选股',wlcQuick:'快速分析',wlcQuickDesc:'适合盘中快速判断方向和风险。',wlcDeep:'深度研究',wlcDeepDesc:'多代理整理催化因素、风险和观察条件。',wlcLive:'实时监控',wlcLiveDesc:'监听价格、RSI、MACD 和异常波动。',wlcPort:'组合概况',wlcPortDesc:'跟踪持仓、自选股、财报和风险温度。',
-    entry_now:'可立即入场',entry_wait:'条件等待',entry_avoid:'建议回避',dash_title:'今日概况',why_matters:'与你的关系',time_horizon:'时间维度',risk_level:'风险等级'},
+    entry_now:'可立即入场',entry_wait:'条件等待',entry_avoid:'建议回避',dash_title:'今日概况',why_matters:'与你的关系',time_horizon:'时间维度',risk_level:'风险等级',
+    bot_tab_dash:'仪表盘',bot_tab_hist:'交易记录',bot_tab_cfg:'设置·日志',
+    bot_start:'▶ 启动机器人',bot_stop:'■ 停止',bot_running:'机器人运行中',bot_no_pos:'无持仓',bot_open_pos:'当前持仓',
+    bot_chart_title:'资产走势',bot_no_data:'暂无数据（机器人运行后开始记录）',
+    bot_trades:'全部交易记录',bot_no_trades:'暂无交易记录',bot_loading:'加载中…',
+    bot_total:'总交易次数',bot_buysell:'买 / 卖',bot_vol:'总交易额',
+    bot_cfg_title:'机器人设置',bot_cfg_save:'保存设置',bot_log:'交易日志',bot_log_empty:'暂无日志',
+    bot_watch:'监控标的',bot_maxpos:'最大仓位($)',bot_intv:'间隔(分钟)',
+    bot_buy_rsi:'买入 RSI <',bot_sell_rsi:'卖出 RSI >',bot_sl:'止损(%)',bot_tp:'止盈(%)',
+    bot_sell_btn:'卖出',bot_connect:'连接并验证',bot_setup_desc:'通过 Alpaca Paper Trading（免费虚拟账户）让 AI 自动交易。',
+    bot_lbl_portval:'总资产',bot_lbl_pnl:'今日盈亏',bot_lbl_bp:'可用资金',bot_lbl_pos:'持仓数',
+    bot_not_connected:'请先连接',bot_connecting:'连接中…',bot_enter_key:'请输入 API 密钥',
+    bot_th_date:'时间',bot_th_sym:'代码',bot_th_side:'方向',bot_th_qty:'数量',bot_th_price:'成交价',bot_th_total:'金额',
+    bot_saved:'✓ 已保存',bot_next_prefix:'下次',bot_shares:'股',
+    bot_scalp_label:'⚡ 高频刷单模式',bot_scalp_desc:'5分钟K线，2分钟循环，每日可交易数十次。评分3/5即入场，无需AI确认。',bot_scalp_sl:'刷单止损(%)',bot_scalp_tp:'刷单止盈(%)',
+    bot_run_once:'⚡ 立即执行',bot_running_cycle:'执行中…',bot_max_concurrent:'🔒 同时持仓上限',bot_slip:'📐 指值滑点(%)'},
 };
 
 // ═══ Init ═══
@@ -34,6 +79,7 @@ window.onload=async()=>{
   keyClaude='';keyOpenAI='';keyDeepSeek='';
   document.body.className=theme;setThemeIcon();
   await loadSecureKeys();
+  stockai.invoke('bot-set-lang',lang).catch(()=>{}); // main.jsのbotLangと同期
   if(Q('model-gemini'))Q('model-gemini').value=model;Q('lang-sel').value=lang;applyLang();
   const pr=await ipcRenderer.invoke('load-portfolio');if(pr.ok&&pr.portfolio?.length){portfolio=pr.portfolio;renderPort();}
   const wl=await ipcRenderer.invoke('load-watchlist');if(wl.ok&&wl.watchlist?.length){watchlist=wl.watchlist;renderWL();}
@@ -68,7 +114,7 @@ function setProviderKey(p,v){if(p==='gemini'){key=v;return;}if(p==='claude'){key
 
 // ═══ Theme / Lang ═══
 function togTheme(){theme=theme==='dark'?'light':'dark';document.body.className=theme;localStorage.setItem('sai_theme',theme);setThemeIcon();}
-function setLang(l){lang=l;localStorage.setItem('sai_lang',l);applyLang();}
+function setLang(l){lang=l;localStorage.setItem('sai_lang',l);applyLang();stockai.invoke('bot-set-lang',l).catch(()=>{});}
 function applyLang(){
   const t=L[lang];Q('inp').placeholder=t.ph;Q('lang-sel').value=lang;
   const title=Q('app-title');if(title)title.textContent=t.appTitle;
@@ -93,11 +139,62 @@ function applyLang(){
   const si=Q('sym-tv');if(si)si.placeholder=t.lbl_symbol+': NVDA...';
   const mp=Q('mkt-placeholder');if(mp)mp.textContent=t.lbl_ticker;
   const he=Q('hist-empty');if(he)he.textContent=t.lbl_history;
+  applyBotLang();
+}
+
+function applyBotLang(){
+  const t=L[lang];
+  const ids={
+    'bot-tab-dash':t.bot_tab_dash,'bot-tab-hist':t.bot_tab_hist,'bot-tab-cfg':t.bot_tab_cfg,
+    'bot-start-btn':t.bot_start,'bot-stop-btn':t.bot_stop,
+    'bot-chart-empty':t.bot_no_data,
+    'bot-setup-desc':t.bot_setup_desc,'bot-connect-btn':t.bot_connect,
+    'bot-chart-title':t.bot_chart_title,'bot-running-text':t.bot_running,
+    'bot-trades-title':t.bot_trades,
+    'bot-cfg-title':t.bot_cfg_title,'bot-cfg-save-btn':t.bot_cfg_save,
+    'bot-watch-label':t.bot_watch,
+    'bot-maxpos-label':t.bot_maxpos,'bot-intv-label':t.bot_intv,
+    'bot-buy-rsi-label':t.bot_buy_rsi,'bot-sell-rsi-label':t.bot_sell_rsi,
+    'bot-sl-label':t.bot_sl,'bot-tp-label':t.bot_tp,
+    'bot-maxpos-cnt-label':t.bot_max_concurrent,'bot-slip-label':t.bot_slip,
+    'bot-run-once-btn':t.bot_run_once,
+    'bot-scalp-label':t.bot_scalp_label,'bot-scalp-desc':t.bot_scalp_desc,
+    'bot-scalp-sl-label':t.bot_scalp_sl,'bot-scalp-tp-label':t.bot_scalp_tp,
+    'bot-log-title':t.bot_log,
+    'bot-lbl-portval':t.bot_lbl_portval,'bot-lbl-pnl':t.bot_lbl_pnl,
+    'bot-lbl-bp':t.bot_lbl_bp,'bot-lbl-pos':t.bot_lbl_pos,
+  };
+  Object.entries(ids).forEach(([id,txt])=>{const el=Q(id);if(el&&txt)el.textContent=txt;});
+  // Log empty state
+  const logEl=Q('bot-log');if(logEl){const emp=logEl.querySelector('.bot-log-empty');if(emp)emp.textContent=t.bot_log_empty;}
+  // Re-render positions with current language
+  if(window._botPositions)renderBotPositions(window._botPositions);
+  // Re-render trade history tab if open
+  if(botCurrentTab==='hist')loadBotTradeHistory();
 }
 
 function welcomeHTML(){
   const t=L[lang];
-  return '<div class="wlc" id="wlc"><h2 id="wlc-title">'+esc(t.wlcTitle)+'</h2><p id="wlc-desc">'+esc(t.wlc)+'</p><div class="wcg"><div class="wcc"><div class="wci">'+ico('zap')+'</div><div class="wct">'+esc(t.wlcQuick)+'</div><div class="wcd">'+esc(t.wlcQuickDesc)+'</div></div><div class="wcc"><div class="wci">'+ico('layers')+'</div><div class="wct">'+esc(t.wlcDeep)+'</div><div class="wcd">'+esc(t.wlcDeepDesc)+'</div></div><div class="wcc"><div class="wci">'+ico('radio')+'</div><div class="wct">'+esc(t.wlcLive)+'</div><div class="wcd">'+esc(t.wlcLiveDesc)+'</div></div><div class="wcc"><div class="wci">'+ico('briefcase')+'</div><div class="wct">'+esc(t.wlcPort)+'</div><div class="wcd">'+esc(t.wlcPortDesc)+'</div></div></div></div>';
+  const hidden=ls('sai_wlc_hidden')==='1';
+  return '<div class="wlc" id="wlc">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'+
+    '<h2 id="wlc-title" style="margin-bottom:0;flex:1">'+esc(t.wlcTitle)+'</h2>'+
+    '<button onclick="togWlcCards()" title="カードを隠す/表示" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:5px;border-radius:7px;display:flex;align-items:center;transition:color .15s,background .15s" onmouseover="this.style.color=\'var(--tx)\'" onmouseout="this.style.color=\'var(--tx3)\'">'+ico('eye','sm')+'</button>'+
+    '</div>'+
+    '<p id="wlc-desc">'+esc(t.wlc)+'</p>'+
+    '<div class="wcg" id="wlc-cards"'+(hidden?' style="display:none"':'')+'>'+
+    '<div class="wcc"><div class="wci">'+ico('zap')+'</div><div><div class="wct">'+esc(t.wlcQuick)+'</div><div class="wcd">'+esc(t.wlcQuickDesc)+'</div></div></div>'+
+    '<div class="wcc"><div class="wci">'+ico('layers')+'</div><div><div class="wct">'+esc(t.wlcDeep)+'</div><div class="wcd">'+esc(t.wlcDeepDesc)+'</div></div></div>'+
+    '<div class="wcc"><div class="wci">'+ico('radio')+'</div><div><div class="wct">'+esc(t.wlcLive)+'</div><div class="wcd">'+esc(t.wlcLiveDesc)+'</div></div></div>'+
+    '<div class="wcc"><div class="wci">'+ico('briefcase')+'</div><div><div class="wct">'+esc(t.wlcPort)+'</div><div class="wcd">'+esc(t.wlcPortDesc)+'</div></div></div>'+
+    '</div>'+
+    '</div>';
+}
+function togWlcCards(){
+  const g=Q('wlc-cards');if(!g)return;
+  const isHidden=g.style.display==='none';
+  g.style.display=isHidden?'':'none';
+  localStorage.setItem('sai_wlc_hidden',isHidden?'0':'1');
 }
 
 // ═══ API ═══
@@ -219,7 +316,20 @@ function renderChatTabs(){const bar=Q('chat-tabs');if(!bar)return;bar.innerHTML=
 
 // ═══ Window / Panels ═══
 function goClose(){ipcRenderer.invoke('win-hide');}function goMini(){ipcRenderer.invoke('win-size','mini');Q('app').style.display='none';Q('mini').style.display='flex';}function goExpand(){ipcRenderer.invoke('win-size','normal');Q('mini').style.display='none';Q('app').style.display='flex';}function goLg(){lgMode=!lgMode;ipcRenderer.invoke('win-size',lgMode?'large':'normal');}
-function togP(name){['dashboard','research','settings','market','tv','portfolio','history','watchlist','review'].forEach(n=>{const p=Q('pnl-'+n);if(p&&n!==name)p.classList.remove('open');});const t=Q('pnl-'+name);if(t)t.classList.toggle('open');if(name==='tv'&&t.classList.contains('open'))tvConn();if(name==='history')loadHistory();}
+const ALL_PANELS=['dashboard','research','settings','market','tv','portfolio','history','watchlist','review','bot'];
+function togP(name){
+  ALL_PANELS.forEach(n=>{const p=Q('pnl-'+n);if(p&&n!==name)p.classList.remove('open');});
+  const t=Q('pnl-'+name);if(!t)return;
+  t.classList.toggle('open');
+  const anyOpen=ALL_PANELS.some(n=>Q('pnl-'+n)?.classList.contains('open'));
+  Q('app').classList.toggle('panel-open',anyOpen);
+  if(name==='tv'&&t.classList.contains('open'))tvConn();
+  if(name==='history')loadHistory();
+}
+function goHome(){
+  ALL_PANELS.forEach(n=>Q('pnl-'+n)?.classList.remove('open'));
+  Q('app').classList.remove('panel-open');
+}
 function togF(t){const m={scr:()=>wScr=!wScr,tv:()=>wTV=!wTV,mkt:()=>wMkt=!wMkt,srch:()=>wSrch=!wSrch};const g={scr:()=>wScr,tv:()=>wTV,mkt:()=>wMkt,srch:()=>wSrch};if(m[t]){m[t]();Q('t-'+t).classList.toggle('on',g[t]());}}
 
 // ═══ IPC ═══
@@ -683,3 +793,520 @@ function addCopyBtn(bub){const box=document.createElement('div');box.className='
 function addMsg(role,content,isH){rmW();const m=Q('msgs'),row=document.createElement('div');row.className='mr'+(role==='user'?' user':'');const av=document.createElement('div');av.className='mav '+(role==='user'?'user':'ai');av.textContent=role==='user'?'U':'AI';const bub=document.createElement('div');bub.className='mbb';if(isH)bub.innerHTML=content;else bub.textContent=content;addCopyBtn(bub);row.appendChild(av);row.appendChild(bub);m.appendChild(row);m.scrollTop=m.scrollHeight;return bub;}
 function showThk(txt){rmW();const m=Q('msgs'),row=document.createElement('div');row.className='mr thk-row';row.innerHTML='<div class="mav ai">AI</div><div class="thk"><div class="dtl"><span></span><span></span><span></span></div>'+txt+'</div>';m.appendChild(row);m.scrollTop=m.scrollHeight;return row;}
 function md(t){if(!t)return'';const cb=[];t=t.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,l,c)=>{cb.push(c.trim());return'%%C'+(cb.length-1)+'%%';});t=esc(t).replace(/^####\s+(.+)$/gm,'<h4>$1</h4>').replace(/^###\s+(.+)$/gm,'<h3>$1</h3>').replace(/^##\s+(.+)$/gm,'<h2>$1</h2>').replace(/^#\s+(.+)$/gm,'<h2>$1</h2>').replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>').replace(/\*([^*\n]+)\*/g,'<em>$1</em>').replace(/^[-•·]\s+(.+)$/gm,'<div class="li"><span class="lid">•</span><span>$1</span></div>').replace(/^(\d+)\.\s+(.+)$/gm,'<div class="li"><span class="lin">$1.</span><span>$2</span></div>').replace(/^---+$/gm,'<hr>').replace(/^&gt;\s*(.+)$/gm,'<blockquote>$1</blockquote>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\n\n+/g,'<div style="margin:6px 0"></div>').replace(/\n/g,'<br>');cb.forEach((c,i)=>{t=t.replace('%%C'+i+'%%','<pre>'+esc(c)+'</pre>');});return t;}
+
+
+
+// ═══════════════════════════════════════════════════════════
+// ALPACA PAPER TRADING BOT
+// ═══════════════════════════════════════════════════════════
+let botKeyId='',botSecret='',botIsRunning=false,botCycleTimer=null,botNextCycleDate=null;
+let botPortfolioHistory=[],botChartRange=9999,botCurrentTab='dash',botChartExpanded=false;
+
+function botKeyDisplayUpdate(keyId){
+  const el=Q('bot-key-id-new');
+  if(el&&keyId)el.value=keyId;
+}
+function togCfgSecret(){
+  const inp=Q('bot-key-secret-new');if(!inp)return;
+  inp.type=inp.type==='password'?'text':'password';
+}
+async function saveBotKeys(){
+  const keyId=(Q('bot-key-id-new')?.value||'').trim();
+  const secret=(Q('bot-key-secret-new')?.value||'').trim();
+  const msg=Q('bot-key-cfg-msg');
+  if(!keyId||!secret){if(msg){msg.style.color='var(--rd)';msg.textContent='请填写两个字段';}return;}
+  if(msg){msg.style.color='var(--tx3)';msg.textContent='连接中…';}
+  const r=await stockai.invoke('alpaca-connect',{keyId,secret});
+  if(r.error){if(msg){msg.style.color='var(--rd)';msg.textContent='❌ '+r.error;}return;}
+  botKeyId=keyId;botSecret=secret;
+  Q('bot-key-id').value=keyId;Q('bot-key-secret').value=secret;
+  botKeyDisplayUpdate(keyId);
+  togBotKeyEdit();
+  if(msg){msg.style.color='var(--ac)';msg.textContent='✓ 已保存并连接';}
+  setTimeout(()=>{if(Q('bot-key-cfg-msg'))Q('bot-key-cfg-msg').textContent='';},3000);
+  renderBotAccount(r.account,[],r.clock);
+  Q('bot-setup').style.display='none';Q('bot-account').style.display='block';
+}
+async function resetBotKeysFromCfg(){
+  await stockai.invoke('alpaca-delete-keys');
+  botKeyId='';botSecret='';
+  Q('bot-key-id').value='';Q('bot-key-secret').value='';
+  botKeyDisplayUpdate('');
+  const banner=Q('bot-saved-banner');if(banner)banner.style.display='none';
+  Q('bot-account').style.display='none';Q('bot-setup').style.display='block';
+  const msg=Q('bot-key-cfg-msg');
+  if(msg){msg.style.color='var(--tx3)';msg.textContent='🗑 已重置，请重新连接';}
+}
+async function resetBotKeys(){
+  await stockai.invoke('alpaca-delete-keys');
+  botKeyId='';botSecret='';
+  Q('bot-key-id').value='';Q('bot-key-secret').value='';
+  const banner=Q('bot-saved-banner');if(banner)banner.style.display='none';
+  const msg=Q('bot-connect-msg');if(msg){msg.style.color='var(--tx3)';msg.textContent='🗑 キーを削除しました';}
+  setTimeout(()=>{if(Q('bot-connect-msg'))Q('bot-connect-msg').textContent='';},2500);
+}
+async function initBotPanel(){
+  const r=await stockai.invoke('alpaca-load-keys');
+  if(r.keyId){
+    botKeyId=r.keyId;botSecret=r.secret;
+    Q('bot-key-id').value=r.keyId;Q('bot-key-secret').value=r.secret;
+    const banner=Q('bot-saved-banner');if(banner)banner.style.display='flex';
+    botKeyDisplayUpdate(r.keyId);
+  }
+  const st=await stockai.invoke('bot-status');
+  if(st.ok){
+    botIsRunning=st.running;
+    if(st.config){
+      Q('bot-watchlist').value=st.config.watchlist.join(',');
+      Q('bot-max-pos').value=st.config.maxPositionUSD;
+      Q('bot-interval').value=st.config.intervalMinutes;
+      Q('bot-buy-rsi').value=st.config.buyRSI;
+      Q('bot-sell-rsi').value=st.config.sellRSI;
+      Q('bot-sl').value=st.config.stopLossPercent;
+      Q('bot-tp').value=st.config.takeProfitPercent;
+      if(st.config.scalpMode!=null){Q('bot-scalp-mode').checked=!!st.config.scalpMode;botToggleScalpUI();}
+      if(st.config.scalpStopPct!=null)Q('bot-scalp-sl').value=st.config.scalpStopPct;
+      if(st.config.scalpProfitPct!=null)Q('bot-scalp-tp').value=st.config.scalpProfitPct;
+      if(st.config.maxConcurrentPositions!=null&&Q('bot-max-concurrent'))Q('bot-max-concurrent').value=st.config.maxConcurrentPositions;
+      if(st.config.limitSlippagePct!=null&&Q('bot-slip'))Q('bot-slip').value=st.config.limitSlippagePct;
+    }
+    if(st.logs.length)renderBotLogs(st.logs);
+    if(r.keyId&&r.secret){Q('bot-setup').style.display='none';Q('bot-account').style.display='block';botRefresh();}
+    updateBotRunningUI(botIsRunning);
+    if(botIsRunning)startBotNextCycleTimer(st.config?.intervalMinutes||15);
+  }
+  updateBotMarketStatus();
+  setInterval(updateBotMarketStatus,60000);
+  applyBotLang();
+}
+
+function switchBotTab(tab){
+  botCurrentTab=tab;
+  ['dash','hist','cfg'].forEach(t=>{
+    const p=Q('bot-panel-'+t);const btn=Q('bot-tab-'+t);
+    if(t===tab){
+      if(t==='cfg'){p.style.display='flex';p.style.flex='1';}
+      else{p.style.display='block';p.style.flex='1';p.style.overflowY='auto';p.style.minHeight='0';}
+    }else{
+      p.style.display='none';p.style.flex='';p.style.overflowY='';p.style.minHeight='';
+    }
+    btn.style.borderBottomColor=t===tab?'var(--ac)':'transparent';
+    btn.style.color=t===tab?'var(--ac)':'var(--tx3)';
+  });
+  if(tab==='hist')loadBotTradeHistory();
+  if(tab==='dash')drawBotChart();
+}
+
+function togBotSecret(){
+  const inp=Q('bot-key-secret');if(!inp)return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  const eye=Q('bot-secret-eye');
+  if(eye)eye.style.opacity=show?'0.5':'1';
+}
+async function botConnect(){
+  const keyId=Q('bot-key-id').value.trim(),secret=Q('bot-key-secret').value.trim();
+  const msg=Q('bot-connect-msg');
+  if(!keyId||!secret){msg.style.color='var(--rd)';msg.textContent=L[lang].bot_enter_key;return;}
+  msg.style.color='var(--tx3)';msg.textContent=L[lang].bot_connecting;
+  const r=await stockai.invoke('alpaca-connect',{keyId,secret});
+  if(r.error){msg.style.color='var(--rd)';msg.textContent='❌ '+r.error;return;}
+  botKeyId=keyId;botSecret=secret;msg.textContent='';
+  const banner=Q('bot-saved-banner');if(banner)banner.style.display='flex';
+  botKeyDisplayUpdate(keyId);
+  Q('bot-setup').style.display='none';Q('bot-account').style.display='block';
+  applyBotLang();
+  renderBotAccount(r.account,[],r.clock);
+}
+
+async function botRefresh(){
+  if(!botKeyId||!botSecret)return;
+  const r=await stockai.invoke('alpaca-account',{keyId:botKeyId,secret:botSecret});
+  if(r.error)return;
+  renderBotAccount(r.account,r.positions,r.clock);
+  // Load portfolio history for chart
+  const ph=await stockai.invoke('bot-portfolio-history');
+  if(ph.ok){botPortfolioHistory=ph.history;drawBotChart();}
+}
+
+function renderBotAccount(acct,positions,clock){
+  const pv=parseFloat(acct.portfolio_value||0);
+  const bp=parseFloat(acct.buying_power||0);
+  const pnl=parseFloat(acct.equity||pv)-parseFloat(acct.last_equity||pv);
+  Q('bot-portfolio-val').textContent='$'+pv.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  Q('bot-buying-power').textContent='$'+bp.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pnlEl=Q('bot-pnl');pnlEl.textContent=(pnl>=0?'+':'')+pnl.toFixed(2);pnlEl.style.color=pnl>=0?'var(--ac)':'var(--rd)';
+  Q('bot-pos-count').textContent=positions.length;
+  renderBotPositions(positions);
+  if(clock)Q('bot-market-status').textContent=clock.is_open?'🟢 OPEN':'🔴 CLOSED';
+}
+
+function renderBotPositions(positions){
+  window._botPositions=positions;
+  const t=L[lang];
+  const el=Q('bot-positions');
+  if(!positions.length){el.innerHTML=`<div style="font-size:10px;color:var(--tx3);padding:4px 0 8px">${t.bot_no_pos}</div>`;return;}
+  let h=`<div style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">${t.bot_open_pos}</div>`;
+  for(const p of positions){
+    const pnl=parseFloat(p.unrealized_plpc||0)*100;
+    const col=pnl>=0?'var(--ac)':'var(--rd)';
+    const upl=parseFloat(p.unrealized_pl||0);
+    h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:7px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px">
+      <div style="font-weight:700;font-size:12px;min-width:48px">${p.symbol}</div>
+      <div style="font-size:10px;color:var(--tx2);flex:1">${p.qty}${t.bot_shares} @$${parseFloat(p.avg_entry_price).toFixed(2)}</div>
+      <div style="font-size:11px;font-weight:700;font-family:monospace;color:${col}">${pnl>=0?'+':''}${pnl.toFixed(2)}% (${upl>=0?'+':''}$${upl.toFixed(0)})</div>
+      <button onclick="botClosePos('${p.symbol}')" class="mbn" style="padding:2px 7px;font-size:10px;background:var(--rd2);color:var(--rd);border-color:var(--rdb)">${t.bot_sell_btn}</button>
+    </div>`;
+  }
+  el.innerHTML=h;
+}
+
+async function loadBotTradeHistory(){
+  const t=L[lang];
+  const el=Q('bot-trade-list');
+  el.innerHTML=`<div style="color:var(--tx3);text-align:center;padding:16px;font-size:10px">${t.bot_loading}</div>`;
+  if(!botKeyId||!botSecret){el.innerHTML=`<div style="color:var(--tx3);text-align:center;padding:16px;font-size:10px">${t.bot_not_connected}</div>`;return;}
+  const r=await stockai.invoke('alpaca-filled-orders',{keyId:botKeyId,secret:botSecret});
+  if(r.error){el.innerHTML='<div style="color:var(--rd);padding:10px;font-size:10px">❌ '+r.error+'</div>';return;}
+  const orders=r.orders||[];
+  renderTradeStats(orders);
+  if(!orders.length){el.innerHTML=`<div style="color:var(--tx3);text-align:center;padding:20px;font-size:10px">${t.bot_no_trades}</div>`;return;}
+  const dtLocale=lang==='zh'?'zh-CN':lang==='ja'?'ja-JP':'en-US';
+  let h=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:10px">
+    <thead><tr style="color:var(--tx3);border-bottom:1px solid var(--brd)">
+      <th style="text-align:left;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_date}</th>
+      <th style="text-align:left;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_sym}</th>
+      <th style="text-align:center;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_side}</th>
+      <th style="text-align:right;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_qty}</th>
+      <th style="text-align:right;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_price}</th>
+      <th style="text-align:right;padding:5px 6px;font-weight:700;font-size:9px">${t.bot_th_total}</th>
+    </tr></thead><tbody>`;
+  for(const o of orders){
+    const dt=new Date(o.filled_at||o.created_at);
+    const dateStr=dt.toLocaleDateString(dtLocale,{month:'2-digit',day:'2-digit'});
+    const timeStr=dt.toLocaleTimeString(dtLocale,{hour:'2-digit',minute:'2-digit'});
+    const isBuy=o.side==='buy';
+    const qty=parseFloat(o.filled_qty||o.qty||0);
+    const price=parseFloat(o.filled_avg_price||0);
+    const total=qty*price;
+    h+=`<tr style="border-bottom:1px solid var(--brd);transition:background .1s" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <td style="padding:5px 6px;color:var(--tx3);white-space:nowrap">${dateStr}<br><span style="font-size:8px">${timeStr}</span></td>
+      <td style="padding:5px 6px;font-weight:700">${o.symbol}</td>
+      <td style="padding:5px 6px;text-align:center"><span style="background:${isBuy?'rgba(16,185,129,.15)':'rgba(239,68,68,.12)'};color:${isBuy?'var(--ac)':'var(--rd)'};border-radius:4px;padding:2px 6px;font-size:9px;font-weight:700">${isBuy?'BUY':'SELL'}</span></td>
+      <td style="padding:5px 6px;text-align:right;font-family:monospace">${qty}</td>
+      <td style="padding:5px 6px;text-align:right;font-family:monospace">$${price.toFixed(2)}</td>
+      <td style="padding:5px 6px;text-align:right;font-family:monospace;font-weight:700">$${total.toFixed(0)}</td>
+    </tr>`;
+  }
+  h+='</tbody></table></div>';
+  el.innerHTML=h;
+}
+
+function renderTradeStats(orders){
+  const el=Q('bot-trade-stats');
+  const buys=orders.filter(o=>o.side==='buy').length;
+  const sells=orders.filter(o=>o.side==='sell').length;
+  const total=orders.length;
+  const totalVol=orders.reduce((s,o)=>s+parseFloat(o.filled_qty||0)*parseFloat(o.filled_avg_price||0),0);
+  const t=L[lang];
+  el.innerHTML=`
+    <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;text-align:center">
+      <div style="font-size:8px;color:var(--tx3);margin-bottom:3px">${t.bot_total}</div>
+      <div style="font-size:18px;font-weight:800;font-family:monospace">${total}</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;text-align:center">
+      <div style="font-size:8px;color:var(--tx3);margin-bottom:3px">${t.bot_buysell}</div>
+      <div style="font-size:14px;font-weight:800;font-family:monospace"><span style="color:var(--ac)">${buys}</span> / <span style="color:var(--rd)">${sells}</span></div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;text-align:center">
+      <div style="font-size:8px;color:var(--tx3);margin-bottom:3px">${t.bot_vol}</div>
+      <div style="font-size:13px;font-weight:800;font-family:monospace">$${(totalVol/1000).toFixed(1)}K</div>
+    </div>`;
+}
+
+function setBotChartRange(days){
+  botChartRange=days;
+  [['1d',1],['7d',7],['1m',30],['all',9999]].forEach(([k,v])=>{
+    const btn=Q('bcr-'+k);if(!btn)return;
+    const on=days===v;
+    btn.style.background=on?'var(--ac2)':'';btn.style.color=on?'var(--ac)':'';btn.style.borderColor=on?'var(--acb)':'';
+  });
+  drawBotChart();
+  const wrap=Q('bot-chart-wrap');
+  if(wrap){wrap.classList.remove('chart-anim');requestAnimationFrame(()=>wrap.classList.add('chart-anim'));}
+}
+
+function toggleBotChartExpand(){
+  botChartExpanded=!botChartExpanded;
+  const wrap=Q('bot-chart-wrap'),btn=Q('bcr-expand');
+  if(wrap)wrap.style.height=botChartExpanded?'230px':'130px';
+  if(btn)btn.textContent=botChartExpanded?'⤡':'⤢';
+  setTimeout(drawBotChart,370);
+}
+
+function drawBotChart(){
+  const canvas=Q('bot-chart');const emptyEl=Q('bot-chart-empty');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const w=canvas.offsetWidth||460,h=canvas.offsetHeight||130;
+  canvas.width=w*dpr;canvas.height=h*dpr;ctx.scale(dpr,dpr);
+
+  let data=botPortfolioHistory;
+  if(!data||data.length<2){canvas.style.display='none';emptyEl.style.display='flex';return;}
+  canvas.style.display='block';emptyEl.style.display='none';
+
+  // Filter by range
+  if(botChartRange<9999){
+    const cutoff=Date.now()-botChartRange*24*60*60*1000;
+    data=data.filter(d=>new Date(d.time).getTime()>=cutoff);
+  }
+  if(data.length<2){canvas.style.display='none';emptyEl.style.display='flex';return;}
+
+  const values=data.map(d=>d.value);
+  const minV=Math.min(...values),maxV=Math.max(...values);
+  const range=maxV-minV||1;
+  const pad={t:10,b:22,l:8,r:8};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+
+  const isDark=document.body.classList.contains('dark')||!document.body.classList.contains('light');
+  const gridColor=isDark?'rgba(255,255,255,.06)':'rgba(0,0,0,.06)';
+  const textColor=isDark?'rgba(255,255,255,.35)':'rgba(0,0,0,.35)';
+  const isProfit=values[values.length-1]>=values[0];
+  const lineColor=isProfit?'#10b981':'#ef4444';
+  const fillColor=isProfit?'rgba(16,185,129,.12)':'rgba(239,68,68,.1)';
+
+  ctx.clearRect(0,0,w,h);
+
+  // Grid lines
+  ctx.strokeStyle=gridColor;ctx.lineWidth=1;
+  [0,.25,.5,.75,1].forEach(t=>{
+    const y=pad.t+ch*(1-t);
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+  });
+
+  // Plot points
+  const pts=data.map((d,i)=>({
+    x:pad.l+cw*(i/(data.length-1)),
+    y:pad.t+ch*(1-(d.value-minV)/range)
+  }));
+
+  // Fill area
+  ctx.beginPath();ctx.moveTo(pts[0].x,pad.t+ch);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts[pts.length-1].x,pad.t+ch);ctx.closePath();
+  ctx.fillStyle=fillColor;ctx.fill();
+
+  // Line
+  ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle=lineColor;ctx.lineWidth=1.5;ctx.lineJoin='round';ctx.stroke();
+
+  // Labels: min/max/current
+  ctx.fillStyle=textColor;ctx.font='9px monospace';ctx.textAlign='left';
+  ctx.fillText('$'+minV.toLocaleString('en-US',{maximumFractionDigits:0}),pad.l+2,pad.t+ch-2);
+  ctx.fillText('$'+maxV.toLocaleString('en-US',{maximumFractionDigits:0}),pad.l+2,pad.t+10);
+
+  // X-axis dates
+  const first=new Date(data[0].time),last=new Date(data[data.length-1].time);
+  const fmt=d=>d.toLocaleDateString('ja-JP',{month:'numeric',day:'numeric'});
+  ctx.textAlign='left';ctx.fillText(fmt(first),pad.l,h-4);
+  ctx.textAlign='right';ctx.fillText(fmt(last),w-pad.r,h-4);
+
+  // Current value dot
+  const lp=pts[pts.length-1];
+  ctx.beginPath();ctx.arc(lp.x,lp.y,3,0,Math.PI*2);ctx.fillStyle=lineColor;ctx.fill();
+
+  // % change label
+  const pct=((values[values.length-1]-values[0])/values[0]*100);
+  ctx.textAlign='right';ctx.fillStyle=lineColor;ctx.font='bold 10px monospace';
+  ctx.fillText((pct>=0?'+':'')+pct.toFixed(2)+'%',w-pad.r,pad.t+10);
+}
+
+function renderBotLogs(logs){
+  const el=Q('bot-log');
+  if(!logs.length){el.innerHTML=`<div class="bot-log-empty" style="color:var(--tx3)">${L[lang].bot_log_empty}</div>`;return;}
+  const colors={buy:'#10b981',sell:'#ef4444',hold:'#71717a',wait:'#52525b',info:'#a1a1aa',warn:'#f59e0b',error:'#ef4444'};
+  const dtLocale=lang==='zh'?'zh-CN':lang==='ja'?'ja-JP':'en-US';
+  el.innerHTML=logs.slice(0,80).map(e=>{
+    const ts=new Date(e.time).toLocaleTimeString(dtLocale);
+    return`<div style="color:${colors[e.type]||'#a1a1aa'}">[${ts}] ${e.msg}</div>`;
+  }).join('');
+  el.scrollTop=0;
+}
+
+async function botStart(){
+  if(!botKeyId||!botSecret){alert(L[lang].bot_not_connected);return;}
+  const config={
+    watchlist:Q('bot-watchlist').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),
+    maxPositionUSD:parseFloat(Q('bot-max-pos').value)||500,
+    stopLossPercent:parseFloat(Q('bot-sl').value)||3,
+    takeProfitPercent:parseFloat(Q('bot-tp').value)||8,
+    intervalMinutes:parseFloat(Q('bot-interval').value)||15,
+    buyRSI:parseFloat(Q('bot-buy-rsi').value)||35,
+    sellRSI:parseFloat(Q('bot-sell-rsi').value)||65,
+    scalpMode:Q('bot-scalp-mode').checked,
+    scalpStopPct:parseFloat(Q('bot-scalp-sl').value)||0.5,
+    scalpProfitPct:parseFloat(Q('bot-scalp-tp').value)||1.5,
+    maxConcurrentPositions:parseInt(Q('bot-max-concurrent')?.value)||3,
+    limitSlippagePct:parseFloat(Q('bot-slip')?.value)||0.1,
+    useBracketOrders:true,
+  };
+  const r=await stockai.invoke('bot-start',{keyId:botKeyId,secret:botSecret,config});
+  if(r.error){alert(r.error);return;}
+  botIsRunning=true;updateBotRunningUI(true);startBotNextCycleTimer(config.intervalMinutes);
+}
+
+async function botStop(){
+  await stockai.invoke('bot-stop');
+  botIsRunning=false;updateBotRunningUI(false);
+  if(botCycleTimer){clearInterval(botCycleTimer);botCycleTimer=null;}
+}
+
+// 手動で1サイクル即時実行（テスト用）
+async function botRunOnce(btn){
+  if(!botKeyId||!botSecret){alert(L[lang].bot_not_connected);return;}
+  const orig=btn.textContent,origBg=btn.style.background;
+  btn.disabled=true;btn.textContent='⏳ '+L[lang].bot_running_cycle;btn.style.background='var(--ac2)';btn.style.color='var(--ac)';
+  try{
+    const r=await stockai.invoke('bot-run-once',{keyId:botKeyId,secret:botSecret});
+    if(r.error){alert(r.error);}
+  }catch(e){alert(e.message);}
+  setTimeout(()=>{btn.disabled=false;btn.textContent=orig;btn.style.background=origBg;btn.style.color='var(--tx2)';},3000);
+}
+
+function botToggleScalpUI(toggle){
+  const cb=Q('bot-scalp-mode');
+  if(toggle===true)cb.checked=!cb.checked; // カード全体クリック時に状態反転
+  const on=cb.checked;
+  const slider=Q('bot-scalp-slider');
+  const knob=Q('bot-scalp-knob');
+  const inputs=Q('bot-scalp-inputs');
+  const badgeOn=Q('bot-scalp-badge');
+  const badgeOff=Q('bot-scalp-badge-off');
+  const card=Q('bot-scalp-card');
+  // 大型カード全体に視覚フィードバック
+  if(card){
+    card.style.background=on?'linear-gradient(135deg,#10b98115 0%,#f59e0b15 100%)':'var(--bg2)';
+    card.style.borderColor=on?'#10b981':'var(--brd)';
+    card.style.boxShadow=on?'0 0 0 3px #10b98120':'none';
+  }
+  // スイッチ
+  if(slider)slider.style.background=on?'#10b981':'#9ca3af';
+  if(knob)knob.style.left=on?'25px':'3px';
+  // バッジ切替
+  if(badgeOn)badgeOn.style.display=on?'inline-block':'none';
+  if(badgeOff)badgeOff.style.display=on?'none':'inline-block';
+  // 詳細入力欄
+  if(inputs)inputs.style.display=on?'grid':'none';
+  // スキャルプ有効時は間隔を自動的に2分に変更
+  const intvEl=Q('bot-interval');
+  if(on&&intvEl&&parseFloat(intvEl.value)>2)intvEl.value='2';
+  else if(!on&&intvEl&&parseFloat(intvEl.value)<5)intvEl.value='15';
+}
+
+async function botClosePos(symbol){
+  const msg=lang==='zh'?`确定卖出全部 ${symbol} 仓位？`:lang==='en'?`Close all ${symbol} positions?`:`${symbol}のポジションを全て売却しますか？`;
+  if(!confirm(msg))return;
+  const r=await stockai.invoke('alpaca-close-position',{keyId:botKeyId,secret:botSecret,symbol});
+  if(r.error){alert(r.error);return;}
+  setTimeout(botRefresh,1500);
+}
+
+async function botSaveCfg(){
+  const config={
+    watchlist:Q('bot-watchlist').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean),
+    maxPositionUSD:parseFloat(Q('bot-max-pos').value)||500,
+    stopLossPercent:parseFloat(Q('bot-sl').value)||3,
+    takeProfitPercent:parseFloat(Q('bot-tp').value)||8,
+    intervalMinutes:parseFloat(Q('bot-interval').value)||15,
+    buyRSI:parseFloat(Q('bot-buy-rsi').value)||35,
+    sellRSI:parseFloat(Q('bot-sell-rsi').value)||65,
+    scalpMode:Q('bot-scalp-mode').checked,
+    scalpStopPct:parseFloat(Q('bot-scalp-sl').value)||0.5,
+    scalpProfitPct:parseFloat(Q('bot-scalp-tp').value)||1.5,
+    maxConcurrentPositions:parseInt(Q('bot-max-concurrent')?.value)||3,
+    limitSlippagePct:parseFloat(Q('bot-slip')?.value)||0.1,
+    useBracketOrders:true,
+  };
+  const btn=Q('bot-cfg-save-btn');
+  btn.disabled=true;
+  await stockai.invoke('bot-save-config',config);
+  btn.style.background='var(--ac)';btn.style.color='#04130d';btn.style.transform='scale(0.97)';
+  btn.textContent='✓ 保存完了！';
+  setTimeout(()=>btn.style.transform='',120);
+  setTimeout(()=>{btn.style.background='var(--ac2)';btn.style.color='var(--ac)';btn.textContent=L[lang]?.bot_cfg_save||'保存设置';btn.disabled=false;},1800);
+}
+
+function updateBotRunningUI(running){
+  const s=Q('bot-start-btn'),p=Q('bot-stop-btn'),b=Q('bot-running-banner');
+  if(running){s.style.display='none';p.style.display='block';b.style.display='flex';}
+  else{s.style.display='block';p.style.display='none';b.style.display='none';}
+}
+
+function startBotNextCycleTimer(minutes){
+  if(botCycleTimer)clearInterval(botCycleTimer);
+  botNextCycleDate=new Date(Date.now()+minutes*60*1000);
+  botCycleTimer=setInterval(()=>{
+    if(!botIsRunning){clearInterval(botCycleTimer);return;}
+    const rem=Math.max(0,Math.round((botNextCycleDate-Date.now())/1000));
+    const m=Math.floor(rem/60),s=rem%60;
+    const el=Q('bot-next-cycle');if(el)el.textContent=`${L[lang].bot_next_prefix} ${m}:${String(s).padStart(2,'0')}`;
+    if(rem<=0){botNextCycleDate=new Date(Date.now()+minutes*60*1000);botRefresh();}
+  },1000);
+}
+
+function updateBotMarketStatus(){
+  const el=Q('bot-market-status');if(!el)return;
+  const est=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  const open=est.getDay()>0&&est.getDay()<6&&(est.getHours()*60+est.getMinutes())>=570&&(est.getHours()*60+est.getMinutes())<960;
+  el.textContent=open?'🟢 OPEN':'🔴 CLOSED';
+}
+
+// Live updates from main process
+stockai.on('bot-update',(err,data)=>{
+  if(data.type==='log'){
+    const logEl=Q('bot-log');if(!logEl)return;
+    const colors={buy:'#10b981',sell:'#ef4444',hold:'#71717a',wait:'#52525b',info:'#a1a1aa',warn:'#f59e0b',error:'#ef4444'};
+    const e=data.entry;const dtLocale=lang==='zh'?'zh-CN':lang==='ja'?'ja-JP':'en-US';
+    const ts=new Date(e.time).toLocaleTimeString(dtLocale);
+    const div=document.createElement('div');div.style.color=colors[e.type]||'#a1a1aa';div.textContent=`[${ts}] ${e.msg}`;
+    if(logEl.querySelector('.bot-log-empty'))logEl.innerHTML='';
+    logEl.insertBefore(div,logEl.firstChild);
+    if(logEl.children.length>80)logEl.removeChild(logEl.lastChild);
+  }
+  if(data.type==='account'){renderBotAccount(data.account,data.positions,null);}
+  if(data.type==='status'){botIsRunning=data.running;updateBotRunningUI(data.running);}
+  if(data.type==='ws-status'){
+    const badge=Q('bot-ws-badge');if(!badge)return;
+    if(data.connected){
+      badge.style.display='inline';
+      badge.style.background='#10b98122';badge.style.color='#10b981';badge.style.borderColor='#10b98144';
+      badge.textContent='📡 RT LIVE';
+    }else{
+      badge.style.background='#f59e0b22';badge.style.color='#f59e0b';badge.style.borderColor='#f59e0b44';
+      badge.textContent='⏳ 再接続中';
+    }
+  }
+  if(data.type==='cycle-end'){
+    setTimeout(async()=>{
+      botRefresh();
+      if(botCurrentTab==='hist')loadBotTradeHistory();
+    },2000);
+  }
+});
+
+// ═══ Button ripple animation ═══
+document.addEventListener('pointerdown',e=>{
+  const btn=e.target.closest('.tbb,.mbn,.asv,.snb,.ob-open-btn,.ob-save-btn,.wl-add-btn,.port-add,.mbn,.tvab,.bot-tab,.tbs');
+  if(!btn||btn.disabled)return;
+  const r=document.createElement('span');
+  const rect=btn.getBoundingClientRect();
+  const sz=Math.max(rect.width,rect.height)*2;
+  r.style.cssText=`position:absolute;border-radius:50%;pointer-events:none;`+
+    `width:${sz}px;height:${sz}px;`+
+    `left:${e.clientX-rect.left-sz/2}px;top:${e.clientY-rect.top-sz/2}px;`+
+    `background:rgba(255,255,255,0.18);transform:scale(0);animation:_rpl .45s ease-out forwards;z-index:9;`;
+  btn.appendChild(r);
+  setTimeout(()=>r.remove(),500);
+});

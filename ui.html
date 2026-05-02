@@ -32,7 +32,7 @@ body.light{--bg:#fafafa;--bg2:#fff;--bg3:#f4f4f5;--bg4:#e4e4e7;--bg5:#d4d4d8;--b
 /* Chat tabs */
 .chat-bar{display:flex;gap:2px;padding:4px 12px;background:var(--bg2);border-bottom:1px solid var(--brd);flex-shrink:0;-webkit-app-region:no-drag;overflow-x:auto}.chat-bar::-webkit-scrollbar{display:none}.chat-tab{padding:3px 10px;border-radius:6px;border:1px solid transparent;background:transparent;color:var(--tx3);font-size:10px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:4px}.chat-tab:hover{background:var(--bg3);color:var(--tx)}.chat-tab.active{background:var(--bg3);color:var(--ac);border-color:var(--acb)}.chat-tab-x{font-size:12px;color:var(--tx3);cursor:pointer;margin-left:2px}.chat-tab-x:hover{color:var(--rd)}.chat-tab-new{color:var(--ac);font-weight:700;font-size:14px;padding:3px 8px}
 .msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px;-webkit-app-region:no-drag}
-.wlc{margin:auto;max-width:500px;text-align:left;padding:22px 0}.wlg{display:none}.wlc h2{font-size:22px;font-weight:800;margin-bottom:7px;letter-spacing:.1px}.wlc p{font-size:13px;color:var(--tx2);margin-bottom:14px;line-height:1.65}.wlc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.wlc-action{border:1px solid var(--brd);background:var(--bg2);color:var(--tx);border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}.wlc-action.primary{background:var(--ac);border-color:var(--ac);color:#04130d}.wcg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.wcc{padding:13px 14px;background:var(--bg2);border:1px solid var(--brd);border-radius:10px;text-align:left;display:grid;grid-template-columns:28px 1fr;column-gap:10px;align-items:start}.wci{width:28px;height:28px;border-radius:8px;background:var(--bg3);color:var(--ac);display:flex;align-items:center;justify-content:center;margin-top:1px}.wct{font-size:12px;font-weight:800;letter-spacing:.1px}.wcd{font-size:11px;color:var(--tx3);margin-top:3px;line-height:1.45;grid-column:2}
+.wlc{margin:auto;max-width:500px;text-align:left;padding:22px 0}.wlg{display:none}.wlc h2{font-size:22px;font-weight:800;margin-bottom:7px;letter-spacing:.1px}.wlc p{font-size:13px;color:var(--tx2);margin-bottom:14px;line-height:1.65}.wlc-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.wlc-action{border:1px solid var(--brd);background:var(--bg2);color:var(--tx);border-radius:9px;padding:8px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}.wlc-action.primary{background:var(--ac);border-color:var(--ac);color:#04130d}.wcg{display:grid;grid-template-columns:1fr;gap:8px}.wcc{padding:16px 18px;background:var(--bg2);border:1px solid var(--brd);border-radius:12px;text-align:left;display:grid;grid-template-columns:36px 1fr;column-gap:12px;align-items:center;min-height:72px;transition:background .15s,border-color .15s}.wcc:hover{background:var(--bg3);border-color:var(--bd2)}.wci{width:36px;height:36px;border-radius:10px;background:var(--bg3);color:var(--ac);display:flex;align-items:center;justify-content:center}.wcc:hover .wci{background:var(--bg4)}.wct{font-size:13px;font-weight:800;letter-spacing:.1px}.wcd{font-size:11px;color:var(--tx3);margin-top:3px;line-height:1.45;grid-column:2}
 .mr{display:flex;gap:8px;align-items:flex-start}.mr.user{flex-direction:row-reverse}.mav{width:26px;height:26px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:'IBM Plex Mono',monospace;user-select:none}.mav.ai{background:var(--ac2);color:var(--ac)}.mav.user{background:var(--bl2);color:var(--bl)}.mbb{flex:1;min-width:0;word-break:break-word;position:relative;user-select:text;-webkit-user-select:text}.mbb *{user-select:text;-webkit-user-select:text}.msg-actions{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .15s;z-index:3}.mbb:hover .msg-actions{opacity:1}.copy-btn,.export-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(--brd);background:var(--bg2);color:var(--tx3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color .15s,background .15s;user-select:none;-webkit-user-select:none}.copy-btn *,.export-btn *{user-select:none;-webkit-user-select:none}.copy-btn:hover,.export-btn:hover{color:var(--ac);background:var(--bg3);border-color:var(--acb)}.copy-btn.copied,.export-btn.copied{color:var(--ac);border-color:var(--acb);background:var(--ac2)}.mr.user .mbb{background:var(--bg3);border:1px solid var(--brd);border-radius:12px 2px 12px 12px;padding:8px 12px;font-size:13px;color:var(--tx2);margin-left:24px}
 /* Report - conclusion first */
 .rpt{background:var(--bg2);border:1px solid var(--brd);border-radius:var(--R);overflow:hidden;margin-top:4px}.rpth{padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between}.rptt{font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace}.rptm{display:flex;align-items:center;gap:8px}.rpts{font-size:14px;letter-spacing:1px}
@@ -96,6 +96,22 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 .ob-save-btn{background:var(--ac);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s}.ob-save-btn:disabled{opacity:.35;cursor:not-allowed}
 .ob-err{font-size:10px;color:var(--rd);text-align:center;margin-bottom:4px;display:none}
 .ob-skip{display:block;text-align:center;font-size:10px;color:var(--tx3);cursor:pointer;margin-top:10px;text-decoration:underline;background:none;border:none;font-family:inherit;width:100%}.ob-skip:hover{color:var(--tx)}
+@keyframes chartIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+#bot-chart-wrap.chart-anim{animation:chartIn .3s ease}
+/* ── Full-page panel mode ── */
+#app.panel-open .pnl.open{flex:1;max-height:none;overflow-y:auto;border-bottom:none;animation:fi .18s ease}
+#app.panel-open #pnl-bot.open{overflow:hidden}
+#app.panel-open #pnl-bot.open .pb{height:100%;display:flex;flex-direction:column;min-height:0}
+#app.panel-open #pnl-bot.open #bot-account{flex:1!important;display:flex!important;flex-direction:column;min-height:0}
+#app.panel-open #agbar,
+#app.panel-open #autobar,
+#app.panel-open .chat-bar,
+#app.panel-open .msgs,
+#app.panel-open .ia{display:none!important}
+/* ── Button press animations ── */
+.tbb,.mbn,.asv,.snb,.ob-open-btn,.ob-save-btn,.wl-add-btn,.port-add,.tvab{position:relative;overflow:hidden;transition:transform .08s ease,opacity .08s ease}
+.tbb:active,.mbn:active,.asv:active,.snb:active,.ob-open-btn:active,.ob-save-btn:active,.wl-add-btn:active,.port-add:active,.tvab:active{transform:scale(0.91)!important}
+@keyframes _rpl{to{transform:scale(1);opacity:0}}
 </style></head>
 <body class="dark">
 <svg width="0" height="0" style="position:absolute;display:none" aria-hidden="true">
@@ -168,7 +184,8 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <div class="sp"></div>
 <div class="tb-group">
 <span class="nav-label" id="nav-tools">工具</span>
-<button class="tbb tbs icon-btn" onclick="togP('dashboard');initDashboard()" title="今日概况"><svg class="ico sm"><use href="#i-home"/></svg></button>
+<button class="tbb tbs icon-btn" onclick="goHome()" title="返回首页 / ホームへ"><svg class="ico sm"><use href="#i-home"/></svg></button>
+<button class="tbb tbs icon-btn" onclick="togP('dashboard');initDashboard()" title="今日概况 / 今日の概況" style="font-size:14px">📊</button>
 <button class="tbb tbs icon-btn" onclick="togP('research')" title="股票研究"><svg class="ico sm"><use href="#i-search"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('watchlist')" id="tb-wl" title="自选股"><svg class="ico sm"><use href="#i-eye"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('portfolio')" title="持仓组合"><svg class="ico sm"><use href="#i-briefcase"/></svg></button>
@@ -176,6 +193,7 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <button class="tbb tbs icon-btn" onclick="togP('history')" title="分析历史"><svg class="ico sm"><use href="#i-clipboard"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('market')" title="行情数据"><svg class="ico sm"><use href="#i-chart"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('tv')" title="TradingView"><svg class="ico sm"><use href="#i-monitor"/></svg></button>
+<button class="tbb tbs icon-btn" onclick="togP('bot');initBotPanel()" title="自動売買ボット" id="tb-bot" style="font-size:14px">🤖</button>
 <button class="tbb tbs icon-btn" onclick="togP('settings')" title="API 设置"><svg class="ico sm"><use href="#i-settings"/></svg></button>
 </div>
 <button class="tbb tbs icon-btn" onclick="togTheme()" id="thb" title="切换主题"><svg class="ico sm"><use href="#i-sun"/></svg></button>
@@ -195,6 +213,203 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <div class="pnl" id="pnl-watchlist"><div class="pb"><div class="mh"><span class="mt" style="color:var(--ac)" id="wl-title">ウォッチリスト</span><div class="ms"><button class="mbn" onclick="scoreWatchlist()" style="background:var(--bl2);color:var(--bl);border-color:var(--blb)">评分</button><button class="mbn" onclick="analyzeWatchlist()" id="wl-analyze-btn" style="background:var(--pu2);color:var(--pu);border-color:var(--pub)">批量分析</button></div></div><div id="wl-score"></div><div id="wl-list"></div><div class="wl-add-row"><input class="wl-add-in" id="wl-add-input" placeholder="AAPL" onkeydown="if(event.key==='Enter')addWL()"/><button class="wl-add-btn" onclick="addWL()">+</button></div></div></div>
 <div class="pnl" id="pnl-review"><div class="pb"><div class="mh"><span class="mt" style="color:var(--am)">交易复盘</span><button class="mbn" onclick="runTradeReview()" style="background:var(--am2);color:var(--am);border-color:var(--amb)">复盘</button></div><textarea class="tvin" id="review-text" rows="4" style="min-height:84px;resize:vertical;font-family:inherit" placeholder="输入买入价、卖出价、买入理由、卖出理由、盈亏、当时情绪。可同时打开截屏开关，让 AI 参考当前图表。"></textarea><div class="why-box"><div class="why-lbl">Review</div><div class="why-txt">重点检查追高、恐慌卖出、亏损加仓、无计划交易、止损纪律和复盘改进点。</div></div></div></div>
 <div class="pnl" id="pnl-history"><div class="pb"><div class="mh"><span class="mt" style="color:var(--am)" id="hist-title">履歴</span></div><div id="hist-list"><div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px" id="hist-empty">分析履歴なし</div></div></div></div>
+<div class="pnl" id="pnl-bot"><div class="pb" style="padding:0">
+
+<!-- Bot Header -->
+<div style="padding:10px 14px 8px;border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:8px;flex-shrink:0">
+  <span style="font-size:15px">🤖</span>
+  <span style="font-weight:800;font-size:13px;color:var(--ac)">AutoTrader</span>
+  <span style="font-size:9px;background:var(--ac2);color:var(--ac);border:1px solid var(--acb);border-radius:20px;padding:2px 7px;font-family:monospace">PAPER</span>
+  <div style="flex:1"></div>
+  <div id="bot-market-status" style="font-size:9px;font-family:monospace;color:var(--tx3)">—</div>
+  <button onclick="botRefresh()" class="mbn" style="padding:3px 8px;font-size:11px">↻</button>
+</div>
+
+<!-- API Key Setup -->
+<div id="bot-setup" style="padding:16px 16px">
+  <div style="font-size:11px;color:var(--tx2);margin-bottom:14px;line-height:1.6">
+    <span id="bot-setup-desc">通过 Alpaca Paper Trading（免费虚拟账户）让 AI 自动交易。</span><br>
+    <a href="#" style="color:var(--ac)" onclick="stockai.invoke('open-external',{url:'https://app.alpaca.markets/paper/dashboard/overview'})">app.alpaca.markets</a> → Paper → API Keys
+  </div>
+  <!-- Saved key banner (shown when keys are loaded from store) -->
+  <div id="bot-saved-banner" style="display:none;align-items:center;gap:8px;background:var(--ac2);border:1px solid var(--acb);border-radius:8px;padding:9px 12px;margin-bottom:12px">
+    <span style="font-size:13px">🔑</span>
+    <span style="font-size:11px;color:var(--ac);flex:1">已保存的 API 密钥</span>
+    <button onclick="resetBotKeys()" style="background:var(--rd2);color:var(--rd);border:1px solid var(--rdb);border-radius:6px;padding:3px 10px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">🗑 重置</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+    <div>
+      <div style="font-size:10px;color:var(--tx3);font-family:monospace;margin-bottom:5px;letter-spacing:.3px">API KEY ID</div>
+      <input id="bot-key-id" placeholder="PKXXXXXXXXXXXXXXXXXX" style="width:100%;display:block;background:var(--bg3);border:1.5px solid var(--brd);border-radius:8px;color:var(--tx);font-size:12px;padding:10px 12px;outline:none;font-family:'IBM Plex Mono',monospace;transition:border-color .2s" onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--brd)'"/>
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--tx3);font-family:monospace;margin-bottom:5px;letter-spacing:.3px">SECRET KEY</div>
+      <div style="position:relative">
+        <input id="bot-key-secret" type="password" placeholder="••••••••••••••••••••" style="width:100%;display:block;background:var(--bg3);border:1.5px solid var(--brd);border-radius:8px;color:var(--tx);font-size:12px;padding:10px 40px 10px 12px;outline:none;font-family:'IBM Plex Mono',monospace;transition:border-color .2s" onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--brd)'"/>
+        <button onclick="togBotSecret()" id="bot-secret-eye" title="表示/非表示" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx3);cursor:pointer;padding:4px;display:flex;align-items:center;transition:color .15s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'"><svg class="ico sm"><use href="#i-eye"/></svg></button>
+      </div>
+    </div>
+  </div>
+  <button id="bot-connect-btn" class="mbn" onclick="botConnect()" style="width:100%;background:var(--ac);color:#04130d;font-weight:700;padding:11px;font-size:13px;border-radius:9px">连接并验证</button>
+  <div id="bot-connect-msg" style="margin-top:8px;font-size:11px;color:var(--tx3)"></div>
+</div>
+
+<!-- Main Bot UI (hidden until connected) -->
+<div id="bot-account" style="display:none">
+
+  <!-- Tab bar -->
+  <div style="display:flex;border-bottom:1px solid var(--brd);padding:0 10px;flex-shrink:0">
+    <button class="bot-tab active" id="bot-tab-dash" onclick="switchBotTab('dash')" style="flex:1;background:none;border:none;border-bottom:2px solid var(--ac);color:var(--ac);font-size:11px;font-weight:700;padding:8px 4px;cursor:pointer;font-family:inherit">ダッシュボード</button>
+    <button class="bot-tab" id="bot-tab-hist" onclick="switchBotTab('hist')" style="flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--tx3);font-size:11px;font-weight:700;padding:8px 4px;cursor:pointer;font-family:inherit">取引履歴</button>
+    <button class="bot-tab" id="bot-tab-cfg" onclick="switchBotTab('cfg')" style="flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--tx3);font-size:11px;font-weight:700;padding:8px 4px;cursor:pointer;font-family:inherit">設定・ログ</button>
+  </div>
+
+  <!-- ── TAB: Dashboard ── -->
+  <div id="bot-panel-dash" style="padding:10px 12px">
+
+    <!-- Stats row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px">
+        <div id="bot-lbl-portval" style="font-size:8px;color:var(--tx3);font-family:monospace;margin-bottom:2px">PORTFOLIO VALUE</div>
+        <div id="bot-portfolio-val" style="font-size:15px;font-weight:800;font-family:monospace;color:var(--ac)">—</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px">
+        <div id="bot-lbl-pnl" style="font-size:8px;color:var(--tx3);font-family:monospace;margin-bottom:2px">TODAY P&amp;L</div>
+        <div id="bot-pnl" style="font-size:15px;font-weight:800;font-family:monospace">—</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px">
+        <div id="bot-lbl-bp" style="font-size:8px;color:var(--tx3);font-family:monospace;margin-bottom:2px">BUYING POWER</div>
+        <div id="bot-buying-power" style="font-size:15px;font-weight:800;font-family:monospace;color:var(--tx)">—</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px">
+        <div id="bot-lbl-pos" style="font-size:8px;color:var(--tx3);font-family:monospace;margin-bottom:2px">POSITIONS</div>
+        <div id="bot-pos-count" style="font-size:15px;font-weight:800;font-family:monospace;color:var(--tx)">—</div>
+      </div>
+    </div>
+
+    <!-- Asset chart -->
+    <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div id="bot-chart-title" style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px">資産推移</div>
+        <div style="display:flex;gap:3px">
+          <button onclick="setBotChartRange(1)" id="bcr-1d" class="mbn" style="padding:2px 7px;font-size:9px">1D</button>
+          <button onclick="setBotChartRange(7)" id="bcr-7d" class="mbn" style="padding:2px 7px;font-size:9px">7D</button>
+          <button onclick="setBotChartRange(30)" id="bcr-1m" class="mbn" style="padding:2px 7px;font-size:9px">月</button>
+          <button onclick="setBotChartRange(9999)" id="bcr-all" class="mbn" style="padding:2px 7px;font-size:9px;background:var(--ac2);color:var(--ac);border-color:var(--acb)">ALL</button>
+          <button onclick="toggleBotChartExpand()" id="bcr-expand" class="mbn" title="拡大/縮小" style="padding:2px 7px;font-size:10px">⤢</button>
+        </div>
+      </div>
+      <div id="bot-chart-wrap" style="height:130px;transition:height .35s cubic-bezier(.4,0,.2,1);overflow:hidden;position:relative">
+        <canvas id="bot-chart" style="width:100%;height:100%;display:block"></canvas>
+        <div id="bot-chart-empty" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:var(--tx3);font-size:10px">データなし（ボット稼働後に記録されます）</div>
+      </div>
+    </div>
+
+    <!-- Open positions -->
+    <div id="bot-positions" style="margin-bottom:10px"></div>
+
+    <!-- Bot status + start/stop -->
+    <div id="bot-running-banner" style="display:none;background:var(--ac2);border:1px solid var(--acb);border-radius:8px;padding:8px 12px;margin-bottom:8px;align-items:center;gap:8px">
+      <div style="width:7px;height:7px;border-radius:50%;background:var(--ac);animation:pulse 1.5s ease-in-out infinite;flex-shrink:0"></div>
+      <span id="bot-running-text" style="font-size:11px;color:var(--ac);font-weight:600">ボット稼働中</span>
+      <span id="bot-ws-badge" style="display:none;font-size:8px;padding:1px 6px;border-radius:4px;font-weight:600;background:#10b98122;color:#10b981;border:1px solid #10b98144">📡 RT</span>
+      <span id="bot-next-cycle" style="font-size:10px;color:var(--tx3);margin-left:auto"></span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button id="bot-start-btn" onclick="botStart()" class="mbn" style="flex:1;background:var(--ac);color:#04130d;font-weight:700;padding:9px;font-size:12px">▶ ボット起動</button>
+      <button id="bot-stop-btn" onclick="botStop()" class="mbn" style="flex:1;display:none;background:var(--rd2);color:var(--rd);border-color:var(--rdb);font-weight:700;padding:9px;font-size:12px">■ 停止</button>
+      <button id="bot-run-once-btn" onclick="botRunOnce(this)" class="mbn" title="立即执行一次分析周期" style="background:var(--bg3);color:var(--tx2);border:1px solid var(--brd);padding:9px 12px;font-size:12px;font-weight:600">⚡ 立即执行</button>
+    </div>
+  </div>
+
+  <!-- ── TAB: Trade History ── -->
+  <div id="bot-panel-hist" style="display:none;padding:10px 12px">
+
+    <!-- Summary stats -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px" id="bot-trade-stats"></div>
+
+    <!-- Trade list -->
+    <div id="bot-trades-title" style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">全取引履歴</div>
+    <div id="bot-trade-list" style="font-size:11px">
+      <div style="color:var(--tx3);text-align:center;padding:20px;font-size:10px">取引履歴を読み込み中…</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Settings & Log ── -->
+  <div id="bot-panel-cfg" style="display:none;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+
+    <!-- ── Settings (compact, fixed height) ── -->
+    <div style="flex-shrink:0;padding:8px 10px;overflow-y:auto;max-height:52%">
+
+      <!-- API Keys -->
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.4px;margin-bottom:6px">🔑 API 密钥</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input id="bot-key-id-new" placeholder="API KEY ID (PKXX...)" style="flex:1;background:var(--bg2);border:1px solid var(--brd);border-radius:6px;color:var(--tx);font-size:10px;padding:5px 8px;outline:none;font-family:'IBM Plex Mono',monospace;transition:border-color .2s;min-width:0" onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--brd)'"/>
+          <div style="position:relative;flex:1">
+            <input id="bot-key-secret-new" type="password" placeholder="Secret Key" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:6px;color:var(--tx);font-size:10px;padding:5px 28px 5px 8px;outline:none;font-family:'IBM Plex Mono',monospace;transition:border-color .2s;box-sizing:border-box" onfocus="this.style.borderColor='var(--ac)'" onblur="this.style.borderColor='var(--brd)'"/>
+            <button onclick="togCfgSecret()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--tx3);cursor:pointer;padding:2px;display:flex;align-items:center"><svg class="ico sm" style="width:12px;height:12px"><use href="#i-eye"/></svg></button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="saveBotKeys()" style="flex:1;background:var(--ac);color:#04130d;border:none;border-radius:6px;padding:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">✓ 保存并连接</button>
+          <button onclick="resetBotKeysFromCfg()" style="flex:1;background:var(--rd2);color:var(--rd);border:1px solid var(--rdb);border-radius:6px;padding:5px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">🗑 重置</button>
+        </div>
+        <div id="bot-key-cfg-msg" style="margin-top:4px;font-size:9px;color:var(--tx3)"></div>
+      </div>
+
+      <!-- Bot Settings -->
+      <div style="background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div id="bot-cfg-title" style="font-size:9px;font-weight:700;color:var(--tx3);letter-spacing:.4px;margin-bottom:6px">⚙️ 机器人设置</div>
+        <!-- Watchlist -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+          <span id="bot-watch-label" style="font-size:9px;color:var(--tx3);flex-shrink:0;width:52px">监控标的</span>
+          <input id="bot-watchlist" value="NVDA,AAPL,MSFT,TSLA,AMZN" style="flex:1;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 7px;outline:none;font-family:'IBM Plex Mono',monospace"/>
+        </div>
+        <!-- 4-column grid for numeric params -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:6px">
+          <div><div id="bot-maxpos-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">仓位($)</div><input id="bot-max-pos" type="number" value="500" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-intv-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">间隔(分)</div><input id="bot-interval" type="number" value="15" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-buy-rsi-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">买RSI&lt;</div><input id="bot-buy-rsi" type="number" value="35" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-sell-rsi-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">卖RSI&gt;</div><input id="bot-sell-rsi" type="number" value="65" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-sl-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">止损(%)</div><input id="bot-sl" type="number" value="3" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-tp-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">止盈(%)</div><input id="bot-tp" type="number" value="8" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-maxpos-cnt-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">同持上限</div><input id="bot-max-concurrent" type="number" value="3" min="1" max="20" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+          <div><div id="bot-slip-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">滑点(%)</div><input id="bot-slip" type="number" value="0.1" step="0.05" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 5px;outline:none;font-family:monospace"/></div>
+        </div>
+        <!-- Scalp toggle (compact inline) -->
+        <div id="bot-scalp-card" onclick="botToggleScalpUI(true)" style="cursor:pointer;border:1.5px solid var(--brd);border-radius:8px;padding:7px 10px;margin-bottom:6px;background:var(--bg2);transition:all .25s;display:flex;align-items:center;gap:8px">
+          <div id="bot-scalp-slider" style="position:relative;width:36px;height:20px;background:#9ca3af;border-radius:10px;flex-shrink:0;transition:.25s">
+            <div id="bot-scalp-knob" style="position:absolute;top:2px;left:2px;width:16px;height:16px;background:white;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,0.3)"></div>
+          </div>
+          <input id="bot-scalp-mode" type="checkbox" style="display:none"/>
+          <span id="bot-scalp-label" style="font-size:11px;font-weight:700;color:var(--tx);flex:1">⚡ 高频刷单</span>
+          <span id="bot-scalp-badge" style="display:none;font-size:8px;background:#10b981;color:white;border-radius:4px;padding:1px 5px;font-weight:700">ON</span>
+          <span id="bot-scalp-badge-off" style="font-size:8px;background:#9ca3af;color:white;border-radius:4px;padding:1px 5px;font-weight:700">OFF</span>
+        </div>
+        <div id="bot-scalp-inputs" style="display:none;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <div onclick="event.stopPropagation()"><div id="bot-scalp-sl-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">⛔ 刷单止损(%)</div><input id="bot-scalp-sl" type="number" value="0.5" step="0.1" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 6px;outline:none;font-family:monospace"/></div>
+          <div onclick="event.stopPropagation()"><div id="bot-scalp-tp-label" style="font-size:7px;color:var(--tx3);margin-bottom:2px">🎯 刷单止盈(%)</div><input id="bot-scalp-tp" type="number" value="1.5" step="0.1" style="width:100%;background:var(--bg2);border:1px solid var(--brd);border-radius:5px;color:var(--tx);font-size:10px;padding:4px 6px;outline:none;font-family:monospace"/></div>
+        </div>
+        <button id="bot-cfg-save-btn" onclick="botSaveCfg()" style="width:100%;background:var(--ac2);color:var(--ac);border:1px solid var(--acb);border-radius:6px;padding:7px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">保存设置</button>
+      </div>
+    </div>
+
+    <!-- ── Trade Log (flex:1, fills remaining space) ── -->
+    <div style="flex:1;display:flex;flex-direction:column;min-height:0;padding:0 10px 10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;flex-shrink:0">
+        <div id="bot-log-title" style="font-size:9px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px">取引ログ</div>
+        <button onclick="Q('bot-log').innerHTML='<div class=\'bot-log-empty\' style=\'color:var(--tx3)\'>ログなし</div>'" style="background:none;border:none;color:var(--tx3);font-size:9px;cursor:pointer;font-family:inherit;padding:2px 6px;border-radius:4px;border:1px solid var(--brd)">クリア</button>
+      </div>
+      <div id="bot-log" style="flex:1;min-height:0;background:var(--bg3);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;overflow-y:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;line-height:1.8">
+        <div class="bot-log-empty" style="color:var(--tx3)">ログなし</div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /bot-account -->
+</div></div>
 <div id="agbar"><div class="agch"><div class="agcp" id="ag-A">📊 QUANT</div><div class="agcp" id="ag-B">💼 PORT</div><div class="agcp" id="ag-C">⚡ EXEC</div><div class="agcp" id="ag-D">🛡 RISK</div><div class="agcp" id="ag-E">🏛 CEO</div><div class="agcp" id="ag-F">📝 QA</div></div></div>
 <div id="autobar"><div class="aup" style="background:var(--rd)"></div><span class="aul" id="auto-lbl" style="color:var(--rd)">LIVE</span><select class="ausl" id="auto-intv" onchange="chgIntv()"><option value="3">3s</option><option value="5" selected>5s</option><option value="10">10s</option><option value="15">15s</option></select><button class="ausp" onclick="stopAuto()">■ STOP</button></div>
 <div class="chat-bar" id="chat-tabs"></div>
