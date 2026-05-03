@@ -847,7 +847,7 @@ async function saveBotKeys(){
   if(msg){msg.style.color='var(--ac)';msg.textContent='✓ 已保存并连接';}
   setTimeout(()=>{if(Q('bot-key-cfg-msg'))Q('bot-key-cfg-msg').textContent='';},3000);
   renderBotAccount(r.account,[],r.clock);
-  Q('bot-setup').style.display='none';Q('bot-account').style.display='block';
+  Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';
 }
 async function resetBotKeysFromCfg(){
   await stockai.invoke('alpaca-delete-keys');
@@ -855,7 +855,7 @@ async function resetBotKeysFromCfg(){
   Q('bot-key-id').value='';Q('bot-key-secret').value='';
   botKeyDisplayUpdate('');
   const banner=Q('bot-saved-banner');if(banner)banner.style.display='none';
-  Q('bot-account').style.display='none';Q('bot-setup').style.display='block';
+  Q('bot-account').classList.remove('visible');Q('bot-account').style.display='none';Q('bot-setup').style.display='block';
   const msg=Q('bot-key-cfg-msg');
   if(msg){msg.style.color='var(--tx3)';msg.textContent='🗑 已重置，请重新连接';}
 }
@@ -893,7 +893,7 @@ async function initBotPanel(){
       if(st.config.limitSlippagePct!=null&&Q('bot-slip'))Q('bot-slip').value=st.config.limitSlippagePct;
     }
     if(st.logs.length)renderBotLogs(st.logs);
-    if(r.keyId&&r.secret){Q('bot-setup').style.display='none';Q('bot-account').style.display='block';botRefresh();}
+    if(r.keyId&&r.secret){Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';botRefresh();}
     updateBotRunningUI(botIsRunning);
     if(botIsRunning)startBotNextCycleTimer(st.config?.intervalMinutes||15);
   }
@@ -931,12 +931,14 @@ async function botConnect(){
   const msg=Q('bot-connect-msg');
   if(!keyId||!secret){msg.style.color='var(--rd)';msg.textContent=L[lang].bot_enter_key;return;}
   msg.style.color='var(--tx3)';msg.textContent=L[lang].bot_connecting;
-  const r=await stockai.invoke('alpaca-connect',{keyId,secret});
-  if(r.error){msg.style.color='var(--rd)';msg.textContent='❌ '+r.error;return;}
+  let r;
+  try{r=await stockai.invoke('alpaca-connect',{keyId,secret});}
+  catch(e){msg.style.color='var(--rd)';msg.textContent='❌ '+e.message;return;}
+  if(!r||r.error){msg.style.color='var(--rd)';msg.textContent='❌ '+(r?.error||'接続失敗');return;}
   botKeyId=keyId;botSecret=secret;msg.textContent='';
   const banner=Q('bot-saved-banner');if(banner)banner.style.display='flex';
   botKeyDisplayUpdate(keyId);
-  Q('bot-setup').style.display='none';Q('bot-account').style.display='block';
+  Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';
   applyBotLang();
   renderBotAccount(r.account,[],r.clock);
 }
