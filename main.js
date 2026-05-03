@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, screen, desktopCapturer, globalShortcut, safeStorage, shell, clipboard } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fetch = require('node-fetch');
 const CDP = require('chrome-remote-interface');
 const fs = require('fs');
@@ -26,7 +27,18 @@ const gotLock = app.requestSingleInstanceLock();
 if(!gotLock)app.quit();
 else app.on('second-instance',()=>showMainWindow());
 app.on('open-url',(e)=>{e.preventDefault();showMainWindow();});
-app.whenReady().then(()=>{ ensureDir(); app.setAsDefaultProtocolClient('stockai'); createWindow(); globalShortcut.register('CommandOrControl+Shift+Space',()=>{if(!win)return;win.isVisible()?win.hide():showMainWindow();}); setTimeout(connectTV,3000); });
+app.whenReady().then(()=>{
+  ensureDir(); app.setAsDefaultProtocolClient('stockai'); createWindow();
+  globalShortcut.register('CommandOrControl+Shift+Space',()=>{if(!win)return;win.isVisible()?win.hide():showMainWindow();});
+  setTimeout(connectTV,3000);
+  // Auto-updater
+  autoUpdater.autoDownload=true;
+  autoUpdater.autoInstallOnAppQuit=true;
+  setTimeout(()=>autoUpdater.checkForUpdates().catch(e=>console.log('update check:',e.message)),8000);
+  autoUpdater.on('update-available',info=>send('update-available',{version:info.version}));
+  autoUpdater.on('download-progress',p=>send('update-progress',{percent:Math.round(p.percent)}));
+  autoUpdater.on('update-downloaded',info=>send('update-downloaded',{version:info.version}));
+});
 app.on('will-quit',()=>{globalShortcut.unregisterAll();if(autoTimer)clearInterval(autoTimer);if(smartTimer)clearInterval(smartTimer);if(tvClient)tvClient.close().catch(()=>{});});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
 
@@ -770,6 +782,7 @@ ${JSON.stringify(rows)}`;
 
 ipcMain.handle('read-clipboard',()=>clipboard.readText());
 ipcMain.handle('open-external',(_,url)=>shell.openExternal(url));
+ipcMain.handle('install-update',()=>autoUpdater.quitAndInstall());
 
 // ═══ CLI Auth Detection (Claude Code / Codex) ═══
 function findBin(name){

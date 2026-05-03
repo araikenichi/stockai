@@ -131,6 +131,7 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
 <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
 </svg>
 <div id="mini"><div class="mp" id="mp"></div><div class="mi">S</div><button class="mb" onclick="goExpand()">OPEN</button></div>
 <div id="app">
@@ -167,10 +168,16 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
   </div>
 </div>
 <div class="hdr"><div class="logo">S</div><div class="brand"><div class="brand-main"><span class="bn" id="app-title">StockAI</span><span class="bt" id="app-badge">AI INVEST</span></div><div class="bd" id="app-subtitle"></div></div><div class="wb"><button class="wbn wcl" onclick="goClose()"></button><button class="wbn wmn" onclick="goMini()"></button><button class="wbn wmx" onclick="goLg()"></button></div></div>
+<div id="update-banner" style="display:none;align-items:center;gap:8px;padding:5px 14px;background:var(--ac2);border-bottom:1px solid var(--acb);flex-shrink:0;font-size:11px;color:var(--ac)">
+  <span style="font-size:12px">🆕</span>
+  <span id="update-text">新しいバージョンをダウンロード中...</span>
+  <span id="update-pct" style="font-family:monospace;font-size:10px;display:none"></span>
+  <div style="flex:1"></div>
+  <button id="update-install-btn" onclick="installUpdate()" style="display:none;background:var(--ac);color:#04130d;border:none;border-radius:6px;padding:3px 12px;font-size:10px;font-weight:700;cursor:pointer">再起動してインストール ↻</button>
+  <button onclick="this.closest('#update-banner').style.display='none'" style="background:none;border:none;color:var(--tx3);cursor:pointer;font-size:14px;line-height:1">×</button>
+</div>
 <div class="tb" id="toolbar">
 <div class="tb-group">
-<button class="tbb" onclick="doCapture()" id="tb-capture" title="截屏"><svg class="ico"><use href="#i-camera"/></svg><span>截屏</span></button>
-<button class="tbb" onclick="tvAnalyze()" id="tb-chart" title="图表分析"><svg class="ico"><use href="#i-chart"/></svg><span>图表分析</span></button>
 </div>
 <div class="tb-group">
 <button class="tbb primary" onclick="runLite()" id="tb-quick" title="快速分析"><svg class="ico"><use href="#i-zap"/></svg><span>快速分析</span></button>
@@ -190,7 +197,7 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <button class="tbb tbs icon-btn" onclick="togP('watchlist')" id="tb-wl" title="自选股"><svg class="ico sm"><use href="#i-eye"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('portfolio')" title="持仓组合"><svg class="ico sm"><use href="#i-briefcase"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('review')" title="交易复盘"><svg class="ico sm"><use href="#i-clipboard"/></svg></button>
-<button class="tbb tbs icon-btn" onclick="togP('history')" title="分析历史"><svg class="ico sm"><use href="#i-clipboard"/></svg></button>
+<button class="tbb tbs icon-btn" onclick="togP('history')" title="分析历史"><svg class="ico sm"><use href="#i-clock"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('market')" title="行情数据"><svg class="ico sm"><use href="#i-chart"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('tv')" title="TradingView"><svg class="ico sm"><use href="#i-monitor"/></svg></button>
 <button class="tbb tbs icon-btn" onclick="togP('bot');initBotPanel()" title="自動売買ボット" id="tb-bot" style="font-size:14px">🤖</button>
@@ -414,7 +421,7 @@ input,textarea,.pncd,.prose pre{user-select:text;-webkit-user-select:text}#inp{f
 <div id="autobar"><div class="aup" style="background:var(--rd)"></div><span class="aul" id="auto-lbl" style="color:var(--rd)">LIVE</span><select class="ausl" id="auto-intv" onchange="chgIntv()"><option value="3">3s</option><option value="5" selected>5s</option><option value="10">10s</option><option value="15">15s</option></select><button class="ausp" onclick="stopAuto()">■ STOP</button></div>
 <div class="chat-bar" id="chat-tabs"></div>
 <div class="msgs" id="msgs"><div class="wlc" id="wlc"><h2 id="wlc-title">AI 股票研究助手</h2><p id="wlc-desc">输入股票代码或连接 TradingView，快速看懂行情摘要、风险提示、催化因素和观察条件。</p><div class="wcg"><div class="wcc"><div class="wci"><svg class="ico"><use href="#i-zap"/></svg></div><div class="wct">快速分析</div><div class="wcd">适合盘中快速判断方向和风险。</div></div><div class="wcc"><div class="wci"><svg class="ico"><use href="#i-layers"/></svg></div><div class="wct">深度研究</div><div class="wcd">多代理整理催化因素、风险和观察条件。</div></div><div class="wcc"><div class="wci"><svg class="ico"><use href="#i-radio"/></svg></div><div class="wct">实时监控</div><div class="wcd">监听价格、RSI、MACD 和异常波动。</div></div><div class="wcc"><div class="wci"><svg class="ico"><use href="#i-briefcase"/></svg></div><div class="wct">组合概况</div><div class="wcd">跟踪持仓、自选股、财报和风险温度。</div></div></div></div></div>
-<div class="ia"><div class="itg"><button class="itgb on" id="t-scr" onclick="togF('scr')" title="包含截屏"><svg class="ico sm"><use href="#i-camera"/></svg></button><button class="itgb on" id="t-tv" onclick="togF('tv')" title="包含 TradingView"><svg class="ico sm"><use href="#i-monitor"/></svg></button><button class="itgb on" id="t-mkt" onclick="togF('mkt')" title="包含行情数据"><svg class="ico sm"><use href="#i-chart"/></svg></button><button class="itgb on" id="t-srch" onclick="togF('srch')" title="允许联网搜索"><svg class="ico sm"><use href="#i-search"/></svg></button></div><div class="ibx" id="ibx"><textarea id="inp" rows="1" placeholder="質問を入力"></textarea><button id="stpb" onclick="doStop()">■</button><button class="snb" id="sndb" onclick="doSend()">↑</button></div></div>
+<div class="ia"><div class="itg"><button class="itgb on" id="t-scr" onclick="togF('scr')" title="包含截屏"><svg class="ico sm"><use href="#i-camera"/></svg></button><button class="itgb on" id="t-tv" onclick="togF('tv')" title="包含 TradingView"><svg class="ico sm"><use href="#i-monitor"/></svg></button><button class="itgb on" id="t-mkt" onclick="togF('mkt')" title="包含行情数据"><svg class="ico sm"><use href="#i-chart"/></svg></button><button class="itgb on" id="t-srch" onclick="togF('srch')" title="允许联网搜索"><svg class="ico sm"><use href="#i-search"/></svg></button></div><div class="ibx" id="ibx"><textarea id="inp" rows="1" placeholder="質問を入力"></textarea><button id="tb-capture" onclick="doCapture()" title="スクリーンショット" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px;transition:color .15s" onmouseover="this.style.color='var(--tx)'" onmouseout="this.style.color='var(--tx3)'">📷</button><button id="stpb" onclick="doStop()">■</button><button class="snb" id="sndb" onclick="doSend()">↑</button></div></div>
 </div>
 <script src="app.js"></script>
 </body></html>

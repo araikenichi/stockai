@@ -10,13 +10,13 @@ const allowedInvoke = new Set([
   'tv-connect','tv-state','tv-symbol','tv-set-pine','tv-compile',
   'smart-monitor-start','smart-monitor-stop','get-stream-context','ai-with-context',
   'save-api-key','load-api-keys','delete-api-key','export-report','watchlist-analysis','debate-ai','load-symbol-history','check-signal-outcomes',
-  'read-clipboard','open-external','detect-cli-auth','cli-ai',
+  'read-clipboard','open-external','detect-cli-auth','cli-ai','install-update',
   'alpaca-connect','alpaca-account','alpaca-load-keys','alpaca-delete-keys','alpaca-place-order','alpaca-close-position',
   'alpaca-filled-orders','bot-portfolio-history',
   'bot-start','bot-stop','bot-status','bot-save-config','bot-set-lang','bot-run-once'
 ]);
 
-const allowedOn = new Set(['tv-status','auto-alert','agent-progress','stream-tick','smart-alert','bot-update']);
+const allowedOn = new Set(['tv-status','auto-alert','agent-progress','stream-tick','smart-alert','bot-update','update-available','update-progress','update-downloaded']);
 
 contextBridge.exposeInMainWorld('stockai', {
   invoke(channel, payload) {

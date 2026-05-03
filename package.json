@@ -1,6 +1,6 @@
 {
   "name": "stockai",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "StockAI - AI stock analysis desktop assistant",
   "main": "main.js",
   "author": "StockAI Contributors",
@@ -14,8 +14,9 @@
     "check": "node --check main.js && node --check app.js && node --check preload.js"
   },
   "dependencies": {
-    "node-fetch": "^2.7.0",
-    "chrome-remote-interface": "^0.33.0"
+    "chrome-remote-interface": "^0.33.0",
+    "electron-updater": "^6.8.3",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "electron": "^29.0.0",
@@ -81,6 +82,11 @@
           "stockai"
         ]
       }
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "araikenichi",
+      "repo": "stockai"
+    }
   }
 }

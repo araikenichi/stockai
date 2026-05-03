@@ -87,7 +87,29 @@ window.onload=async()=>{
   Q('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!Q('inp').value.trim())return;if(!enterReady){enterReady=true;Q('sndb').classList.add('ready');Q('ibx').classList.add('ready');}else{enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');doSend();}}else if(e.key!=='Enter'&&enterReady){enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');}});
   Q('inp').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
   setTimeout(()=>{togP('dashboard');if(activeAPIKey())initDashboard();else showOnboarding();},300);
+  initUpdateHandler();
 };
+
+function initUpdateHandler(){
+  stockai.on('update-available',(_,info)=>{
+    const b=Q('update-banner'),t=Q('update-text');
+    if(b){b.style.display='flex';} if(t)t.textContent=`v${info.version} をダウンロード中...`;
+  });
+  stockai.on('update-progress',(_,info)=>{
+    const p=Q('update-pct');if(p){p.style.display='';p.textContent=info.percent+'%';}
+  });
+  stockai.on('update-downloaded',(_,info)=>{
+    const b=Q('update-banner'),t=Q('update-text'),btn=Q('update-install-btn'),p=Q('update-pct');
+    if(b)b.style.display='flex';
+    if(t)t.textContent=`v${info.version} の準備ができました`;
+    if(btn)btn.style.display='block';
+    if(p)p.style.display='none';
+  });
+}
+
+async function installUpdate(){
+  await stockai.invoke('install-update');
+}
 
 // ═══ Utils ═══
 function Q(id){return document.getElementById(id);}
