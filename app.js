@@ -34,7 +34,9 @@ const L={
     bot_th_date:'日時',bot_th_sym:'銘柄',bot_th_side:'売買',bot_th_qty:'株数',bot_th_price:'約定価格',bot_th_total:'金額',
     bot_saved:'✓ 保存済み',bot_next_prefix:'次',bot_shares:'株',
     bot_scalp_label:'⚡ スキャルピングモード',bot_scalp_desc:'5分足・2分サイクルで何十回も取引。スコア3/5で自動エントリー。AIなし。',bot_scalp_sl:'スキャルプSL(%)',bot_scalp_tp:'スキャルプTP(%)',
-    bot_run_once:'⚡ 即時実行',bot_running_cycle:'実行中…',bot_max_concurrent:'🔒 同時保有上限',bot_slip:'📐 指値スリッページ(%)'},
+    bot_run_once:'⚡ 即時実行',bot_running_cycle:'実行中…',bot_max_concurrent:'🔒 同時保有上限',bot_slip:'📐 指値スリッページ(%)',
+    nav_today:'今日',nav_research:'研究',nav_paper:'練習',nav_bot:'ロボット',nav_more:'その他',
+    coach_today_title:'📊 今日',coach_today_desc:'まずタスク、リスク、研究キューを確認。',coach_research_title:'研究',coach_research_desc:'クイック、詳細、複数モデル、決算、ニュースはここ。',coach_paper_title:'$ 練習',coach_paper_desc:'取引規律を練習。実資金口座には接続しません。',coach_bot_title:'🤖 ロボット',coach_bot_desc:'Paper口座ロボットの入口は上部にあります。'},
   en:{ph:'Ask about a ticker or chart',li:'Reply in English.',reason:'Reasoning',result:'Analysis',summary:'Summary',conclusion:'Conclusion',buy:'Bullish ▲',sell:'Bearish ▼',hold:'Neutral ◆',wait:'Watch ◇',wlcTitle:'AI Stock Research Assistant',wlc:'Enter a ticker or connect TradingView to understand market context, risks, catalysts, and observation points.',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
     tb_capture:'Screen',tb_chart:'Chart Analysis',tb_quick:'Quick Analysis',tb_full:'Deep Analysis',tb_consensus:'AI Consensus',tb_monitor:'Live Monitor',
     btn_save:'Save',btn_fetch:'Fetch',btn_add:'+ Add',btn_update:'Refresh',btn_analyze:'Analyze',
@@ -55,7 +57,9 @@ const L={
     bot_th_date:'Date/Time',bot_th_sym:'Symbol',bot_th_side:'Side',bot_th_qty:'Qty',bot_th_price:'Avg Price',bot_th_total:'Total',
     bot_saved:'✓ Saved',bot_next_prefix:'Next',bot_shares:'sh',
     bot_scalp_label:'⚡ Scalping Mode',bot_scalp_desc:'5m bars, 2-min cycles, dozens of trades/day. Entry on score 3/5. No AI (speed mode).',bot_scalp_sl:'Scalp SL (%)',bot_scalp_tp:'Scalp TP (%)',
-    bot_run_once:'⚡ Run Now',bot_running_cycle:'Running…',bot_max_concurrent:'🔒 Max Concurrent Positions',bot_slip:'📐 Limit Slippage (%)'},
+    bot_run_once:'⚡ Run Now',bot_running_cycle:'Running…',bot_max_concurrent:'🔒 Max Concurrent Positions',bot_slip:'📐 Limit Slippage (%)',
+    nav_today:'Today',nav_research:'Research',nav_paper:'Sim',nav_bot:'Bot',nav_more:'More',
+    coach_today_title:'📊 Today',coach_today_desc:'Start with tasks, risk, and the research queue.',coach_research_title:'Research',coach_research_desc:'Quick, deep, multi-model, earnings, and news live here.',coach_paper_title:'$ Sim',coach_paper_desc:'Practice trading discipline without connecting real-money accounts.',coach_bot_title:'🤖 Bot',coach_bot_desc:'The Paper account bot entry is in the top bar.'},
   zh:{ph:'输入股票代码、图表问题或研究问题',li:'用中文回答。',reason:'分析理由',result:'分析结果',summary:'总结',conclusion:'结论',buy:'偏强 ▲',sell:'偏弱 ▼',hold:'中性 ◆',wait:'观察 ◇',wlcTitle:'AI 股票研究助手',wlc:'输入股票代码或连接 TradingView，快速看懂行情摘要、风险提示、催化因素和观察条件。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'工具',
     tb_capture:'截屏',tb_chart:'图表分析',tb_quick:'快速分析',tb_full:'深度分析',tb_consensus:'多模型共识',tb_monitor:'实时监控',
     btn_save:'保存',btn_fetch:'获取',btn_add:'+ 添加',btn_update:'刷新',btn_analyze:'分析',
@@ -76,7 +80,9 @@ const L={
     bot_th_date:'时间',bot_th_sym:'代码',bot_th_side:'方向',bot_th_qty:'数量',bot_th_price:'成交价',bot_th_total:'金额',
     bot_saved:'✓ 已保存',bot_next_prefix:'下次',bot_shares:'股',
     bot_scalp_label:'⚡ 高频刷单模式',bot_scalp_desc:'5分钟K线，2分钟循环，每日可交易数十次。评分3/5即入场，无需AI确认。',bot_scalp_sl:'刷单止损(%)',bot_scalp_tp:'刷单止盈(%)',
-    bot_run_once:'⚡ 立即执行',bot_running_cycle:'执行中…',bot_max_concurrent:'🔒 同时持仓上限',bot_slip:'📐 指值滑点(%)'},
+    bot_run_once:'⚡ 立即执行',bot_running_cycle:'执行中…',bot_max_concurrent:'🔒 同时持仓上限',bot_slip:'📐 指值滑点(%)',
+    nav_today:'今日',nav_research:'研究',nav_paper:'模拟',nav_bot:'机器人',nav_more:'更多',
+    coach_today_title:'📊 今日',coach_today_desc:'先看任务、风险和研究队列。',coach_research_title:'研究',coach_research_desc:'快速、深度、多模型、财报、新闻都在这里。',coach_paper_title:'$ 模拟',coach_paper_desc:'训练交易纪律，不连接真钱账户。',coach_bot_title:'🤖 机器人',coach_bot_desc:'Paper 账户机器人入口在顶部。'},
 };
 
 // ═══ Init ═══
@@ -171,6 +177,10 @@ function applyLang(){
   const wt=Q('wlc-title');if(wt)wt.textContent=t.wlcTitle;
   const d=Q('wlc-desc');if(d)d.textContent=t.wlc;
   const w=Q('wlc');if(w)w.outerHTML=welcomeHTML();
+  const navEls={'nav-today':t.nav_today,'nav-research-main':t.nav_research,'nav-paper':t.nav_paper,'nav-bot':t.nav_bot,'nav-more-main':t.nav_more,
+    'coach-today-title':t.coach_today_title,'coach-today-desc':t.coach_today_desc,'coach-research-title':t.coach_research_title,'coach-research-desc':t.coach_research_desc,
+    'coach-paper-title':t.coach_paper_title,'coach-paper-desc':t.coach_paper_desc,'coach-bot-title':t.coach_bot_title,'coach-bot-desc':t.coach_bot_desc};
+  Object.entries(navEls).forEach(([id,txt])=>{const el=Q(id);if(el&&txt)el.textContent=txt;});
   // Toolbar
   setBtn('tb-capture','camera',t.tb_capture,t.tb_capture);
   setBtn('tb-chart','chart',t.tb_chart,t.tb_chart);
