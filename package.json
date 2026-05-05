@@ -1,6 +1,6 @@
 {
   "name": "stockai",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "StockAI - AI stock analysis desktop assistant",
   "main": "main.js",
   "author": "StockAI Contributors",
