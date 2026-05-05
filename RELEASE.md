@@ -17,6 +17,24 @@ The generated DMG and ZIP files will appear in `dist/`.
 
 ## 3. GitHub Release
 
+### Automatic release from GitHub
+
+The repository now includes `.github/workflows/release.yml`.
+
+Use either of these two ways:
+
+1. Push a tag such as `v2.0.6`
+2. Or run the `Build And Release` workflow manually from GitHub Actions
+
+After that, GitHub Actions will:
+
+1. install dependencies
+2. run `npm run check`
+3. build macOS `dmg` and `zip`
+4. upload them to the GitHub Release page automatically
+
+### Manual release
+
 1. Create a new GitHub Release.
 2. Use a tag such as `v2.0.0`.
 3. Upload the generated DMG files.
