@@ -1,6 +1,6 @@
 {
   "name": "stockai",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "StockAI - AI stock analysis desktop assistant",
   "main": "main.js",
   "author": "StockAI Contributors",
@@ -88,6 +88,7 @@
       "provider": "github",
       "owner": "araikenichi",
       "repo": "stockai"
-    }
+    },
+    "afterPack": "scripts/fix-mac-pack.js"
   }
 }

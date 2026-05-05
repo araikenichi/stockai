@@ -14,15 +14,19 @@ const SZ = { mini:{w:70,h:100}, normal:{w:520,h:780}, large:{w:720,h:960} };
 const DATA_DIR = path.join(app.getPath('userData'), 'stockai');
 const KEY_FILE = path.join(DATA_DIR, 'api-keys.json');
 const WALLET_FILE = path.join(DATA_DIR, 'virtual-wallet.json');
+app.commandLine.appendSwitch('remote-debugging-port','9223');
 function ensureDir() { try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e){} }
 function showMainWindow(){if(!win)return;win.show();win.focus();}
 
 function createWindow() {
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
-  win = new BrowserWindow({ width: SZ.normal.w, height: SZ.normal.h, x: sw-SZ.normal.w-20, y: sh-SZ.normal.h-60, frame:false, transparent:true, alwaysOnTop:true, resizable:true, hasShadow:true, webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,webSecurity:true} });
+  win = new BrowserWindow({ width: SZ.normal.w, height: SZ.normal.h, x: sw-SZ.normal.w-20, y: sh-SZ.normal.h-60, frame:false, transparent:false, backgroundColor:'#111113', alwaysOnTop:true, resizable:true, hasShadow:true, webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,webSecurity:true} });
   win.setAlwaysOnTop(true,'floating',1);
   win.setVisibleOnAllWorkspaces(true,{visibleOnFullScreen:true});
-  win.loadFile('ui.html');
+  win.webContents.on('console-message',(_,level,message,line,sourceId)=>console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`));
+  win.webContents.on('render-process-gone',(_,details)=>console.log('renderer gone:',details));
+  win.webContents.on('did-fail-load',(_,code,desc,url)=>console.log('did-fail-load:',code,desc,url));
+  win.webContents.session.clearCache().finally(()=>win.loadFile('ui.html'));
 }
 const gotLock = app.requestSingleInstanceLock();
 if(!gotLock)app.quit();
@@ -888,7 +892,12 @@ ${JSON.stringify(rows)}`;
 });
 
 ipcMain.handle('read-clipboard',()=>clipboard.readText());
-ipcMain.handle('open-external',(_,url)=>shell.openExternal(url));
+ipcMain.handle('open-external',async(_,payload)=>{
+  const url=typeof payload==='string'?payload:payload?.url;
+  if(!url)return{ok:false,error:'missing url'};
+  try{await shell.openExternal(url);return{ok:true};}
+  catch(e){return{ok:false,error:e.message};}
+});
 ipcMain.handle('install-update',()=>autoUpdater.quitAndInstall());
 
 // ═══ CLI Auth Detection (Claude Code / Codex) ═══

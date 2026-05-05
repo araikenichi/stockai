@@ -1,9 +1,12 @@
 const isElectron=!!window.stockai?.invoke;
-const stockai=window.stockai||{
+var stockai=window.stockai||{
   invoke:async()=>({error:'页面预览版只能看界面，完整功能请用 Electron 版 StockAI 打开'}),
   on:()=>()=>{}
 };
 const ipcRenderer=stockai;
+window.__stockaiRuntime={electron:isElectron,loadedAt:new Date().toISOString(),version:'2.0.11'};
+window.addEventListener('error',e=>console.error('[StockAI renderer error]',e.message,e.filename,e.lineno,e.colno));
+window.addEventListener('unhandledrejection',e=>console.error('[StockAI promise error]',e.reason?.stack||e.reason?.message||e.reason));
 let key='',lang='zh',model='gemini-2.5-flash',keyClaude='',keyOpenAI='',keyDeepSeek='';
 let wScr=true,wTV=true,wMkt=true,wSrch=true;
 let busy=false,hist=[],tvData=null,mktData=null,lastHF=null;
@@ -95,6 +98,7 @@ window.onload=async()=>{
   updateCoachBar();
   stockai.invoke('bot-set-lang',lang).catch(()=>{}); // main.jsのbotLangと同期
   if(Q('model-gemini'))Q('model-gemini').value=model;Q('lang-sel').value=lang;applyLang();
+  bindReliableControls();
   const pr=await ipcRenderer.invoke('load-portfolio');if(pr.ok&&pr.portfolio?.length){portfolio=pr.portfolio;renderPort();}
   const wl=await ipcRenderer.invoke('load-watchlist');if(wl.ok&&wl.watchlist?.length){watchlist=wl.watchlist;renderWL();}
   await loadVirtualWallet();
@@ -104,6 +108,36 @@ window.onload=async()=>{
   setTimeout(()=>{togP('dashboard');if(activeAPIKey())initDashboard();else showOnboarding();},300);
   initUpdateHandler();
 };
+
+function bindReliableControls(){
+  window.setLang=setLang;
+  window.botConnect=botConnect;
+  window.openExternal=openExternal;
+  window.goClose=goClose;
+  window.goMini=goMini;
+  window.goExpand=goExpand;
+  window.goLg=goLg;
+  const on=(id,fn)=>{
+    const el=Q(id);if(!el||el.dataset.bound)return;
+    el.dataset.bound='1';
+    el.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();fn(e);});
+  };
+  Q('lang-sel')?.addEventListener('change',e=>setLang(e.target.value));
+  on('tb-bot',()=>{togP('bot');initBotPanel();});
+  on('auto-btn',()=>togAuto());
+  on('thb',()=>togTheme());
+  on('tb-capture',()=>doCapture());
+  on('bot-connect-btn',()=>botConnect());
+  document.querySelectorAll('[data-external]').forEach(a=>{
+    if(a.dataset.bound)return;
+    a.dataset.bound='1';
+    a.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();openExternal(a.dataset.external||a.href);});
+  });
+  document.addEventListener('click',e=>{
+    const el=e.target.closest('button,a,.help-card,.wcc,.chat-tab,.wl-row,.rq-card,.ev-item,.briefing-item');
+    if(el)console.debug('[StockAI click]',el.id||el.className||el.textContent.trim().slice(0,32));
+  },true);
+}
 
 function initUpdateHandler(){
   stockai.on('update-available',(_,info)=>{
@@ -134,6 +168,11 @@ function sf(v,d=2){return v!=null&&!isNaN(v)?Number(v).toFixed(d):'—';}
 function trn(s,n=300){return(s||'').slice(0,n);}
 function ico(id,cls=''){return '<svg class="ico '+cls+'"><use href="#i-'+id+'"/></svg>';}
 function setBtn(id,icon,text,title){const el=Q(id);if(!el)return;el.innerHTML=ico(icon)+'<span>'+esc(text)+'</span>';if(title)el.title=title;}
+function setCaptureBtn(){
+  const t=L[lang],el=Q('tb-capture');if(!el)return;
+  el.innerHTML=ico('camera','sm')+'<span>'+esc(t.tb_capture)+'</span>';
+  el.title=t.tb_capture;
+}
 function setThemeIcon(){const b=Q('thb');if(b)b.innerHTML=ico(theme==='dark'?'sun':'moon','sm');}
 function reportMeta(sym){return {time:new Date().toLocaleString(),symbol:sym||tvData?.sym||mktData?.sym||'—'};}
 function disclaimerHTML(sym){const m=reportMeta(sym);return '<div class="why-box" style="margin:10px 12px 12px"><div class="why-lbl">免责声明 / DATA</div><div class="why-txt">生成时间: '+esc(m.time)+' · 标的: '+esc(m.symbol)+' · 数据来自公开行情/TradingView/AI 推理，可能延迟或出错。内容仅供研究参考，不构成投资建议，请自行核实并承担交易风险。</div></div>';}
@@ -182,7 +221,7 @@ function applyLang(){
     'coach-paper-title':t.coach_paper_title,'coach-paper-desc':t.coach_paper_desc,'coach-bot-title':t.coach_bot_title,'coach-bot-desc':t.coach_bot_desc};
   Object.entries(navEls).forEach(([id,txt])=>{const el=Q(id);if(el&&txt)el.textContent=txt;});
   // Toolbar
-  setBtn('tb-capture','camera',t.tb_capture,t.tb_capture);
+  setCaptureBtn();
   setBtn('tb-chart','chart',t.tb_chart,t.tb_chart);
   setBtn('tb-quick','zap',t.tb_quick,t.tb_quick);
   setBtn('tb-full','layers',t.tb_full,t.tb_full);
@@ -411,14 +450,26 @@ function deleteChat(idx){if(chats.length<=1)return;chats.splice(idx,1);if(active
 function renderChatTabs(){const bar=Q('chat-tabs');if(!bar)return;bar.innerHTML=chats.map((c,i)=>'<button class="chat-tab'+(i===activeChat?' active':'')+'" onclick="switchChat('+i+')">'+esc(c.name)+(chats.length>1?'<span class="chat-tab-x" onclick="event.stopPropagation();deleteChat('+i+')">×</span>':'')+'</button>').join('')+'<button class="chat-tab chat-tab-new" onclick="newChat()" title="'+L[lang].lbl_newchat+'">+</button>';}
 
 // ═══ Window / Panels ═══
-function goClose(){ipcRenderer.invoke('win-hide');}function goMini(){ipcRenderer.invoke('win-size','mini');Q('app').style.display='none';Q('mini').style.display='flex';}function goExpand(){ipcRenderer.invoke('win-size','normal');Q('mini').style.display='none';Q('app').style.display='flex';}function goLg(){lgMode=!lgMode;ipcRenderer.invoke('win-size',lgMode?'large':'normal');}
+async function openExternal(url){
+  const r=await ipcRenderer.invoke('open-external',url);
+  if(r?.error)alert('リンクを開けません: '+r.error);
+  return r;
+}
+function goClose(){ipcRenderer.invoke('win-quit');}function goMini(){ipcRenderer.invoke('win-size','mini');Q('app').style.display='none';Q('mini').style.display='flex';}function goExpand(){ipcRenderer.invoke('win-size','normal');Q('mini').style.display='none';Q('app').style.display='flex';}function goLg(){lgMode=!lgMode;ipcRenderer.invoke('win-size',lgMode?'large':'normal');}
 const ALL_PANELS=['dashboard','research','settings','market','tv','portfolio','paper','history','watchlist','review','bot','help'];
+function setActiveTopNav(name){
+  const order=['dashboard','research','paper','bot','help'];
+  document.querySelectorAll('.main-nav .tbb').forEach((btn,i)=>{
+    btn.classList.toggle('primary',order[i]===name);
+  });
+}
 function togP(name){
   ALL_PANELS.forEach(n=>{const p=Q('pnl-'+n);if(p&&n!==name)p.classList.remove('open');});
   const t=Q('pnl-'+name);if(!t)return;
   t.classList.toggle('open');
   const anyOpen=ALL_PANELS.some(n=>Q('pnl-'+n)?.classList.contains('open'));
   Q('app').classList.toggle('panel-open',anyOpen);
+  setActiveTopNav(anyOpen&&t.classList.contains('open')?name:'');
   if(name==='tv'&&t.classList.contains('open'))tvConn();
   if(name==='history')loadHistory();
   if(name==='paper')loadVirtualWallet();
@@ -426,6 +477,7 @@ function togP(name){
 function goHome(){
   ALL_PANELS.forEach(n=>Q('pnl-'+n)?.classList.remove('open'));
   Q('app').classList.remove('panel-open');
+  setActiveTopNav('');
 }
 function togF(t){const m={scr:()=>wScr=!wScr,tv:()=>wTV=!wTV,mkt:()=>wMkt=!wMkt,srch:()=>wSrch=!wSrch};const g={scr:()=>wScr,tv:()=>wTV,mkt:()=>wMkt,srch:()=>wSrch};if(m[t]){m[t]();Q('t-'+t).classList.toggle('on',g[t]());}}
 
@@ -1124,7 +1176,7 @@ function togBotSecret(){
 async function botConnect(){
   const keyId=Q('bot-key-id').value.trim(),secret=Q('bot-key-secret').value.trim();
   const msg=Q('bot-connect-msg');
-  if(!isElectron){msg.style.color='var(--rd)';msg.textContent='❌ 当前是页面预览版，只能看界面。请用 Electron 版 StockAI 打开后再连接 Paper Trading。';return;}
+  if(!isElectron){msg.style.color='var(--rd)';msg.textContent='❌ 这里是浏览器页面预览版，不能连接 Paper Trading。请打开 /Applications/StockAI.app 后再点连接。';return;}
   if(!keyId||!secret){msg.style.color='var(--rd)';msg.textContent=L[lang].bot_enter_key;return;}
   msg.style.color='var(--tx3)';msg.textContent=L[lang].bot_connecting;
   let r;

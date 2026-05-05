@@ -1,4 +1,5 @@
 {
+  "afterPack": "scripts/fix-mac-pack.js",
   "mac": {
     "hardenedRuntime": false,
     "gatekeeperAssess": false,
