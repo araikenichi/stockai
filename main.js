@@ -13,6 +13,7 @@ let streamData = { history: [], current: null }; // Last 60 data points (5 min a
 const SZ = { mini:{w:70,h:100}, normal:{w:520,h:780}, large:{w:720,h:960} };
 const DATA_DIR = path.join(app.getPath('userData'), 'stockai');
 const KEY_FILE = path.join(DATA_DIR, 'api-keys.json');
+const WALLET_FILE = path.join(DATA_DIR, 'virtual-wallet.json');
 function ensureDir() { try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch(e){} }
 function showMainWindow(){if(!win)return;win.show();win.focus();}
 
@@ -308,6 +309,112 @@ ipcMain.handle('load-history',()=>{try{return{ok:true,history:JSON.parse(fs.read
 ipcMain.handle('load-symbol-history',(_,{symbol})=>{try{const h=JSON.parse(fs.readFileSync(path.join(DATA_DIR,'history.json'),'utf8'));return{ok:true,history:h.filter(e=>e.symbol?.toUpperCase()===symbol?.toUpperCase()).slice(0,3)};}catch(e){return{ok:true,history:[]};}});
 ipcMain.handle('save-portfolio',(_,{portfolio})=>{try{fs.writeFileSync(path.join(DATA_DIR,'portfolio.json'),JSON.stringify(portfolio,null,2));return{ok:true};}catch(e){return{error:e.message};}});
 ipcMain.handle('load-portfolio',()=>{try{return{ok:true,portfolio:JSON.parse(fs.readFileSync(path.join(DATA_DIR,'portfolio.json'),'utf8'))};}catch(e){return{ok:true,portfolio:[]};}});
+
+function defaultVirtualWallet(){return{cash:100000,initialCash:100000,positions:{},trades:[],snapshots:[],updatedAt:Date.now()};}
+function readVirtualWallet(){try{return{...defaultVirtualWallet(),...JSON.parse(fs.readFileSync(WALLET_FILE,'utf8'))};}catch(e){return defaultVirtualWallet();}}
+function writeVirtualWallet(w){ensureDir();fs.writeFileSync(WALLET_FILE,JSON.stringify(w,null,2));}
+async function fetchQuotePrice(symbol){
+  const yf=await fetchR(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`,{headers:UA});
+  const meta=yf?.chart?.result?.[0]?.meta;
+  if(!meta?.regularMarketPrice)throw new Error(`${symbol} price unavailable`);
+  return{price:meta.regularMarketPrice,change:meta.chartPreviousClose?((meta.regularMarketPrice-meta.chartPreviousClose)/meta.chartPreviousClose*100).toFixed(2):null};
+}
+async function enrichVirtualWallet(wallet){
+  const out={...wallet,positions:{...(wallet.positions||{})}};
+  const symbols=Object.keys(out.positions).filter(sym=>out.positions[sym]?.qty>0);
+  let marketValue=0,totalCost=0,unrealized=0;
+  for(const sym of symbols){
+    const p=out.positions[sym];
+    try{
+      const q=await fetchQuotePrice(sym);
+      p.lastPrice=q.price;p.change=q.change;
+    }catch(e){}
+    const last=parseFloat(p.lastPrice||p.avgCost||0);
+    const qty=parseFloat(p.qty||0),avg=parseFloat(p.avgCost||0);
+    p.marketValue=last*qty;
+    p.unrealized=(last-avg)*qty;
+    p.unrealizedPct=avg?((last-avg)/avg*100):0;
+    marketValue+=p.marketValue;
+    totalCost+=avg*qty;
+    unrealized+=p.unrealized;
+  }
+  out.marketValue=marketValue;
+  out.totalEquity=(parseFloat(out.cash)||0)+marketValue;
+  out.totalReturn=out.totalEquity-(parseFloat(out.initialCash)||100000);
+  out.totalReturnPct=out.initialCash?out.totalReturn/out.initialCash*100:0;
+  out.unrealized=unrealized;
+  out.costBasis=totalCost;
+  return out;
+}
+function scoreTradeDiscipline({wallet, action, sym, amount, fill, note, positionBefore}){
+  const equity=Math.max(1,parseFloat(wallet.initialCash)||100000);
+  const tradePct=fill*amount/equity*100;
+  const text=String(note||'').trim();
+  let score=100;
+  const flags=[];
+  if(!text){score-=22;flags.push('没有记录交易理由');}
+  else if(text.length<12){score-=10;flags.push('理由太短，复盘价值偏低');}
+  if(tradePct>20){score-=24;flags.push('单笔仓位超过 20%');}
+  else if(tradePct>10){score-=12;flags.push('单笔仓位偏大');}
+  if(action==='buy'&&positionBefore?.qty>0){score-=8;flags.push('已有持仓上继续加仓');}
+  if(action==='sell'&&positionBefore?.qty&&amount<positionBefore.qty&&tradePct<2){score-=4;flags.push('减仓幅度较小，注意是否只是情绪动作');}
+  if(!/止损|风险|计划|观察|财报|突破|回踩|support|risk|stop|plan|earnings|breakout/i.test(text)){score-=12;flags.push('没有写清风险或观察条件');}
+  score=Math.max(1,Math.min(100,Math.round(score)));
+  const label=score>=82?'A':score>=68?'B':score>=52?'C':'D';
+  return{score,label,flags:flags.slice(0,3),tradePct:parseFloat(tradePct.toFixed(2))};
+}
+
+ipcMain.handle('virtual-wallet-load',async()=>{
+  try{return{ok:true,wallet:await enrichVirtualWallet(readVirtualWallet())};}
+  catch(e){return{error:e.message};}
+});
+ipcMain.handle('virtual-wallet-reset',async(_,{cash})=>{
+  try{
+    const start=Math.max(1000,parseFloat(cash)||100000);
+    const wallet={...defaultVirtualWallet(),cash:start,initialCash:start,updatedAt:Date.now()};
+    writeVirtualWallet(wallet);
+    return{ok:true,wallet:await enrichVirtualWallet(wallet)};
+  }catch(e){return{error:e.message};}
+});
+ipcMain.handle('virtual-trade',async(_,{symbol,side,qty,price,note})=>{
+  try{
+    const sym=String(symbol||'').trim().toUpperCase();
+    const action=String(side||'buy').toLowerCase()==='sell'?'sell':'buy';
+    const amount=parseFloat(qty);
+    if(!sym||!amount||amount<=0)return{error:'请输入有效的股票代码和数量'};
+    const wallet=readVirtualWallet();
+    const quote=price?{price:parseFloat(price),change:null}:await fetchQuotePrice(sym);
+    const fill=parseFloat(quote.price);
+    if(!fill||fill<=0)return{error:'价格无效'};
+    const cost=fill*amount;
+    const pos=wallet.positions[sym]||{symbol:sym,qty:0,avgCost:0,lastPrice:fill,realized:0};
+    const positionBefore={...pos};
+    const discipline=scoreTradeDiscipline({wallet,action,sym,amount,fill,note,positionBefore});
+    if(action==='buy'){
+      if(wallet.cash<cost)return{error:'虚拟现金不足'};
+      const newQty=parseFloat(pos.qty||0)+amount;
+      pos.avgCost=((parseFloat(pos.avgCost||0)*parseFloat(pos.qty||0))+cost)/newQty;
+      pos.qty=newQty;pos.lastPrice=fill;
+      wallet.positions[sym]=pos;
+      wallet.cash-=cost;
+    }else{
+      if((parseFloat(pos.qty)||0)<amount)return{error:'虚拟持仓不足'};
+      const realized=(fill-parseFloat(pos.avgCost||0))*amount;
+      pos.qty=parseFloat(pos.qty)-amount;
+      pos.realized=(parseFloat(pos.realized)||0)+realized;
+      pos.lastPrice=fill;
+      wallet.cash+=cost;
+      if(pos.qty<=0.000001)delete wallet.positions[sym];
+      else wallet.positions[sym]=pos;
+    }
+    wallet.trades=[{id:Date.now(),time:Date.now(),symbol:sym,side:action,qty:amount,price:fill,total:cost,note:String(note||'').slice(0,120),discipline},...(wallet.trades||[])].slice(0,300);
+    wallet.updatedAt=Date.now();
+    const enriched=await enrichVirtualWallet(wallet);
+    wallet.snapshots=[{time:Date.now(),value:enriched.totalEquity},...(wallet.snapshots||[])].slice(0,300);
+    writeVirtualWallet(wallet);
+    return{ok:true,wallet:await enrichVirtualWallet(wallet)};
+  }catch(e){return{error:e.message};}
+});
 // Watchlist
 ipcMain.handle('save-watchlist',(_,{watchlist})=>{try{fs.writeFileSync(path.join(DATA_DIR,'watchlist.json'),JSON.stringify(watchlist,null,2));return{ok:true};}catch(e){return{error:e.message};}});
 ipcMain.handle('load-watchlist',()=>{try{return{ok:true,watchlist:JSON.parse(fs.readFileSync(path.join(DATA_DIR,'watchlist.json'),'utf8'))};}catch(e){return{ok:true,watchlist:[]};}});

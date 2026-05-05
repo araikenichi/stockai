@@ -1,8 +1,14 @@
-const ipcRenderer=window.stockai;
+const isElectron=!!window.stockai?.invoke;
+const stockai=window.stockai||{
+  invoke:async()=>({error:'页面预览版只能看界面，完整功能请用 Electron 版 StockAI 打开'}),
+  on:()=>()=>{}
+};
+const ipcRenderer=stockai;
 let key='',lang='zh',model='gemini-2.5-flash',keyClaude='',keyOpenAI='',keyDeepSeek='';
 let wScr=true,wTV=true,wMkt=true,wSrch=true;
 let busy=false,hist=[],tvData=null,mktData=null,lastHF=null;
-let autoOn=false,lgMode=false,pineMode=false,portfolio=[],watchlist=[],dashData=null,portPrices={};
+let autoOn=false,lgMode=false,pineMode=false,portfolio=[],watchlist=[],dashData=null,portPrices={},virtualWallet=null;
+let dashboardBriefMode='daily';
 let theme=localStorage.getItem('sai_theme')||'dark';
 let enterReady=false,smartOn=false,liveData=null,userTriggers=[];
 let chats=[{id:0,name:'Chat 1',hist:[],msgs:[]}],activeChat=0,chatIdCounter=1;
@@ -22,7 +28,7 @@ const L={
     bot_cfg_title:'ボット設定',bot_cfg_save:'設定を保存',bot_log:'取引ログ',bot_log_empty:'ログなし',
     bot_watch:'ウォッチ対象',bot_maxpos:'最大ポジション($)',bot_intv:'間隔(分)',
     bot_buy_rsi:'買い RSI <',bot_sell_rsi:'売り RSI >',bot_sl:'ストップロス(%)',bot_tp:'利確(%)',
-    bot_sell_btn:'売却',bot_connect:'接続して確認',bot_setup_desc:'Alpaca Paper Trading（無料仮想口座）でAIが自動売買します。',
+    bot_sell_btn:'売却',bot_connect:'接続して確認',bot_setup_desc:'Alpaca Paper Trading（無料仮想口座）でPaper練習を行います。',
     bot_lbl_portval:'総資産',bot_lbl_pnl:'本日損益',bot_lbl_bp:'余力',bot_lbl_pos:'ポジション数',
     bot_not_connected:'接続してください',bot_connecting:'接続中…',bot_enter_key:'キーを入力してください',
     bot_th_date:'日時',bot_th_sym:'銘柄',bot_th_side:'売買',bot_th_qty:'株数',bot_th_price:'約定価格',bot_th_total:'金額',
@@ -43,7 +49,7 @@ const L={
     bot_cfg_title:'Bot Settings',bot_cfg_save:'Save Settings',bot_log:'Trade Log',bot_log_empty:'No logs',
     bot_watch:'Watchlist',bot_maxpos:'Max Position ($)',bot_intv:'Interval (min)',
     bot_buy_rsi:'Buy RSI <',bot_sell_rsi:'Sell RSI >',bot_sl:'Stop Loss (%)',bot_tp:'Take Profit (%)',
-    bot_sell_btn:'Sell',bot_connect:'Connect & Verify',bot_setup_desc:'AI auto-trades via Alpaca Paper Trading (free virtual account).',
+    bot_sell_btn:'Sell',bot_connect:'Connect & Verify',bot_setup_desc:'Practice with Alpaca Paper Trading (free virtual account).',
     bot_lbl_portval:'Portfolio Value',bot_lbl_pnl:'Today P&L',bot_lbl_bp:'Buying Power',bot_lbl_pos:'Positions',
     bot_not_connected:'Please connect first',bot_connecting:'Connecting…',bot_enter_key:'Please enter API keys',
     bot_th_date:'Date/Time',bot_th_sym:'Symbol',bot_th_side:'Side',bot_th_qty:'Qty',bot_th_price:'Avg Price',bot_th_total:'Total',
@@ -64,7 +70,7 @@ const L={
     bot_cfg_title:'机器人设置',bot_cfg_save:'保存设置',bot_log:'交易日志',bot_log_empty:'暂无日志',
     bot_watch:'监控标的',bot_maxpos:'最大仓位($)',bot_intv:'间隔(分钟)',
     bot_buy_rsi:'买入 RSI <',bot_sell_rsi:'卖出 RSI >',bot_sl:'止损(%)',bot_tp:'止盈(%)',
-    bot_sell_btn:'卖出',bot_connect:'连接并验证',bot_setup_desc:'通过 Alpaca Paper Trading（免费虚拟账户）让 AI 自动交易。',
+    bot_sell_btn:'卖出',bot_connect:'连接并验证',bot_setup_desc:'通过 Alpaca Paper Trading（免费虚拟账户）做模拟训练。',
     bot_lbl_portval:'总资产',bot_lbl_pnl:'今日盈亏',bot_lbl_bp:'可用资金',bot_lbl_pos:'持仓数',
     bot_not_connected:'请先连接',bot_connecting:'连接中…',bot_enter_key:'请输入 API 密钥',
     bot_th_date:'时间',bot_th_sym:'代码',bot_th_side:'方向',bot_th_qty:'数量',bot_th_price:'成交价',bot_th_total:'金额',
@@ -79,10 +85,13 @@ window.onload=async()=>{
   keyClaude='';keyOpenAI='';keyDeepSeek='';
   document.body.className=theme;setThemeIcon();
   await loadSecureKeys();
+  updateRuntimeBanner();
+  updateCoachBar();
   stockai.invoke('bot-set-lang',lang).catch(()=>{}); // main.jsのbotLangと同期
   if(Q('model-gemini'))Q('model-gemini').value=model;Q('lang-sel').value=lang;applyLang();
   const pr=await ipcRenderer.invoke('load-portfolio');if(pr.ok&&pr.portfolio?.length){portfolio=pr.portfolio;renderPort();}
   const wl=await ipcRenderer.invoke('load-watchlist');if(wl.ok&&wl.watchlist?.length){watchlist=wl.watchlist;renderWL();}
+  await loadVirtualWallet();
   loadHistory();renderChatTabs();
   Q('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(!Q('inp').value.trim())return;if(!enterReady){enterReady=true;Q('sndb').classList.add('ready');Q('ibx').classList.add('ready');}else{enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');doSend();}}else if(e.key!=='Enter'&&enterReady){enterReady=false;Q('sndb').classList.remove('ready');Q('ibx').classList.remove('ready');}});
   Q('inp').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';});
@@ -133,6 +142,22 @@ function activeModel(){
 function keysPayload(){return{gemini:key||null,geminiModel:model,claude:keyClaude||null,openai:keyOpenAI||null,openaiModel:Q('model-openai')?.value||'gpt-5.5',deepseek:keyDeepSeek||null,deepseekModel:Q('model-deepseek')?.value||'deepseek-chat'};}
 function providerKey(p){return p==='gemini'?key:p==='claude'?keyClaude:p==='openai'?keyOpenAI:keyDeepSeek;}
 function setProviderKey(p,v){if(p==='gemini'){key=v;return;}if(p==='claude'){keyClaude=v;return;}if(p==='openai'){keyOpenAI=v;return;}if(p==='deepseek')keyDeepSeek=v;}
+function activeProvider(){if(key)return'Gemini';if(keyClaude)return'Claude';if(keyOpenAI)return'OpenAI';if(keyDeepSeek)return'DeepSeek';return'Unknown';}
+function updateRuntimeBanner(){
+  const b=Q('runtime-banner');if(!b)return;
+  b.className='runtime-banner '+(isElectron?'ok':'warn');
+  b.innerHTML=isElectron?'<strong>正式 Electron 版</strong><span>功能完整：行情、保存、虚拟训练中心、Paper Trading 都可用。</span>':'<strong>页面预览版</strong><span>这里只能看界面；连接 Paper Trading、行情评分、保存数据需要用 Electron 版。</span>';
+}
+function updateCoachBar(){
+  const b=Q('coachbar');if(!b)return;
+  const on=localStorage.getItem('sai_coach')!=='0';
+  b.style.display=on?'grid':'none';
+}
+function toggleCoach(){
+  const on=localStorage.getItem('sai_coach')!=='0';
+  localStorage.setItem('sai_coach',on?'0':'1');
+  updateCoachBar();
+}
 
 // ═══ Theme / Lang ═══
 function togTheme(){theme=theme==='dark'?'light':'dark';document.body.className=theme;localStorage.setItem('sai_theme',theme);setThemeIcon();}
@@ -162,6 +187,9 @@ function applyLang(){
   const mp=Q('mkt-placeholder');if(mp)mp.textContent=t.lbl_ticker;
   const he=Q('hist-empty');if(he)he.textContent=t.lbl_history;
   applyBotLang();
+  applyObLang();
+  updateRuntimeBanner();
+  updateCoachBar();
 }
 
 function applyBotLang(){
@@ -223,6 +251,10 @@ function togWlcCards(){
 function togAPI(p){Q('api-'+p).classList.toggle('show');}
 async function loadSecureKeys(){
   const old={gemini:ls('sai_key_gemini')||ls('sai_key'),claude:ls('sai_key_claude'),openai:ls('sai_key_openai'),deepseek:ls('sai_key_deepseek')};
+  if(!isElectron){
+    for(const p of ['gemini','claude','openai','deepseek']){const oldKey=old[p];if(oldKey){setProviderKey(p,oldKey);if(Q('dot-'+p))Q('dot-'+p).classList.add('on');}}
+    return;
+  }
   const r=await ipcRenderer.invoke('load-api-keys');
   const stored=r.ok?r.keys||{}:{};
   for(const p of ['gemini','claude','openai','deepseek']){
@@ -265,6 +297,37 @@ async function clearKey(p){
 let obProvider='',obClipTimer=null;
 const OB_URLS={gemini:'https://aistudio.google.com/app/apikey',claude:'https://console.anthropic.com/settings/keys',openai:'https://platform.openai.com/api-keys',deepseek:'https://platform.deepseek.com/api_keys'};
 const OB_PREFIX={gemini:'AIza',claude:'sk-ant-',openai:'sk-',deepseek:'sk-'};
+const OB_TXT={
+  zh:{title:'欢迎使用 StockAI',sub:'只需 1 分钟配置，即可开始 AI 股票分析<br>选择 AI 提供商 → 一键获取 Key → 开始研究',cliTitle:'⚡ 一键连接（使用已有认证）',cliTag:'✓ 已认证',cliClaude:'复用已有 Claude Code<br>认证',cliCodex:'复用已有 Codex CLI<br>认证',manual:'— 或手动设置 API Key —',geminiTag:'免费',gemini:'Google 出品，免费额度充足<br>推荐新手首选',claude:'分析深度最强<br>适合复杂研究报告',openai:'支持 GPT-5.5、5.4、4.1 等模型<br>生态成熟稳定',deepseekTag:'R1 推理',deepseek:'深度推理能力强<br>价格极低',step:'获取 {name} API Key',open:'🔑 &nbsp;在浏览器中获取 API Key',clip:'复制 Key 后将自动识别并填入…',clipFound:'✓ 已识别 Key，点击确认保存',hint:'复制 Key → 切回 StockAI → 自动填写',paste:'粘贴 {prefix}... Key',save:'确认',err:'Key 格式不符，请重新粘贴',skip:'已有配置，跳过此步骤'},
+  ja:{title:'StockAI へようこそ',sub:'1分で設定して、AI株式分析を開始できます<br>AIプロバイダーを選択 → Keyを取得 → 研究開始',cliTitle:'⚡ ワンクリック接続（既存の認証を使用）',cliTag:'✓ 認証済み',cliClaude:'既存の Claude Code<br>認証を再利用',cliCodex:'既存の Codex CLI<br>認証を再利用',manual:'— または手動で API Key を設定 —',geminiTag:'無料',gemini:'Google 提供、無料枠が十分<br>初心者におすすめ',claude:'深い分析が得意<br>複雑な研究レポート向け',openai:'GPT-5.5、5.4、4.1 などに対応<br>安定したエコシステム',deepseekTag:'R1 推論',deepseek:'深い推論が得意<br>低コスト',step:'{name} API Key を取得',open:'🔑 &nbsp;ブラウザで API Key を取得',clip:'Key をコピーすると自動で入力します…',clipFound:'✓ Key を検出しました。確認を押してください',hint:'Key をコピー → StockAI に戻る → 自動入力',paste:'{prefix}... Key を貼り付け',save:'確認',err:'Key 形式が正しくありません。もう一度貼り付けてください',skip:'設定済みなのでスキップ'},
+  en:{title:'Welcome to StockAI',sub:'Set up in 1 minute and start AI stock research<br>Choose an AI provider → Get a Key → Start researching',cliTitle:'⚡ One-click connect using existing auth',cliTag:'✓ Connected',cliClaude:'Reuse your existing<br>Claude Code auth',cliCodex:'Reuse your existing<br>Codex CLI auth',manual:'— Or set an API Key manually —',geminiTag:'Free',gemini:'From Google, generous free quota<br>Best first choice for beginners',claude:'Strongest for deep analysis<br>Great for complex research reports',openai:'Supports GPT-5.5, 5.4, 4.1 and other GPT models<br>Mature and stable ecosystem',deepseekTag:'R1 Reasoning',deepseek:'Strong reasoning ability<br>Very low cost',step:'Get {name} API Key',open:'🔑 &nbsp;Get API Key in browser',clip:'Copy a Key and StockAI will fill it automatically…',clipFound:'✓ Key detected. Click confirm to save',hint:'Copy Key → return to StockAI → auto fill',paste:'Paste {prefix}... Key',save:'Confirm',err:'Invalid Key format. Please paste again',skip:'Already configured, skip this step'}
+};
+function obT(){return OB_TXT[lang]||OB_TXT.zh;}
+function toggleObLangMenu(){Q('ob-lang-menu')?.classList.toggle('open');}
+function setObLang(l){lang=l;localStorage.setItem('sai_lang',l);Q('ob-lang-menu')?.classList.remove('open');applyLang();applyObLang();}
+function obSet(id,html){const el=Q(id);if(el)el.innerHTML=html;}
+function applyObLang(){
+  const t=obT();
+  const labels={zh:'中文',ja:'日本語',en:'English'};
+  obSet('ob-lang-current',(labels[lang]||labels.zh)+' ▾');
+  ['zh','ja','en'].forEach(l=>Q('ob-lang-'+l)?.classList.toggle('on',lang===l));
+  obSet('ob-title',t.title);obSet('ob-sub',t.sub);obSet('ob-cli-title',t.cliTitle);
+  obSet('ob-cli-claude-tag',t.cliTag);obSet('ob-cli-codex-tag',t.cliTag);
+  obSet('ob-cli-claude-desc',t.cliClaude);obSet('ob-cli-codex-desc',t.cliCodex);obSet('ob-manual-sep',t.manual);
+  obSet('ob-gemini-tag',t.geminiTag);obSet('ob-gemini-desc',t.gemini);obSet('ob-claude-desc',t.claude);obSet('ob-openai-desc',t.openai);
+  obSet('ob-deepseek-tag',t.deepseekTag);obSet('ob-deepseek-desc',t.deepseek);
+  obSet('ob-open-btn',t.open);obSet('ob-clip-hint',t.hint);obSet('ob-save-btn',t.save);obSet('ob-key-err',t.err);obSet('ob-skip',t.skip);
+  if(obProvider){
+    const names={gemini:'Gemini',claude:'Claude',openai:'ChatGPT',deepseek:'DeepSeek'};
+    obSet('ob-step-lbl',t.step.replace('{name}',names[obProvider]||''));
+    const inp=Q('ob-key-in');if(inp)inp.placeholder=t.paste.replace('{prefix}',OB_PREFIX[obProvider]||'');
+  }else{
+    obSet('ob-step-lbl',t.step.replace('{name}',''));
+    const inp=Q('ob-key-in');if(inp)inp.placeholder=lang==='en'?'Or paste Key directly':lang==='ja'?'または Key を直接貼り付け':'或直接粘贴 Key';
+  }
+  const clip=Q('ob-clip-lbl');
+  if(clip)clip.textContent=Q('ob-clip-dot')?.classList.contains('found')?t.clipFound:t.clip;
+}
 async function detectCLIAuth(){
   try{
     const r=await ipcRenderer.invoke('detect-cli-auth');
@@ -290,29 +353,30 @@ async function obSelectCLI(p){
   }
   hideOnboarding();togP('dashboard');initDashboard();
 }
-function showOnboarding(){const o=Q('onboarding');if(o){o.style.display='block';detectCLIAuth();}}
+function showOnboarding(){const o=Q('onboarding');if(o){applyObLang();o.style.display='block';detectCLIAuth();}}
 function hideOnboarding(){const o=Q('onboarding');if(o)o.style.display='none';stopObClip();}
 function obSelect(p){
   obProvider=p;
   document.querySelectorAll('.ob-card').forEach(c=>c.classList.toggle('sel',c.dataset.p===p));
   const step=Q('ob-step');step.classList.add('show');
   Q('ob-dot2').classList.add('act');
-  const names={gemini:'Gemini',claude:'Claude',openai:'GPT-4o',deepseek:'DeepSeek'};
-  Q('ob-step-lbl').textContent='获取 '+names[p]+' API Key';
-  Q('ob-key-in').value='';Q('ob-key-in').placeholder='粘贴 '+(OB_PREFIX[p]||'')+'... Key';
+  const names={gemini:'Gemini',claude:'Claude',openai:'ChatGPT',deepseek:'DeepSeek'};
+  Q('ob-step-lbl').textContent=obT().step.replace('{name}',names[p]);
+  Q('ob-key-in').value='';Q('ob-key-in').placeholder=obT().paste.replace('{prefix}',OB_PREFIX[p]||'');
   Q('ob-key-err').style.display='none';Q('ob-save-btn').disabled=true;
+  applyObLang();
   startObClip();
 }
 async function obOpenKeyPage(){if(!obProvider)return;await ipcRenderer.invoke('open-external',OB_URLS[obProvider]);}
 function startObClip(){
   stopObClip();
-  Q('ob-clip-dot').className='ob-clip-dot';Q('ob-clip-lbl').textContent='复制 Key 后将自动识别并填入…';
+  Q('ob-clip-dot').className='ob-clip-dot';Q('ob-clip-lbl').textContent=obT().clip;
   obClipTimer=setInterval(async()=>{
     try{
       const t=(await ipcRenderer.invoke('read-clipboard')||'').trim();
       if(t&&obProvider&&t.startsWith(OB_PREFIX[obProvider])&&t.length>20){
         Q('ob-key-in').value=t;Q('ob-clip-dot').className='ob-clip-dot found';
-        Q('ob-clip-lbl').textContent='✓ 已识别 Key，点击确认保存';
+        Q('ob-clip-lbl').textContent=obT().clipFound;
         Q('ob-save-btn').disabled=false;stopObClip();
       }
     }catch(e){}
@@ -338,7 +402,7 @@ function renderChatTabs(){const bar=Q('chat-tabs');if(!bar)return;bar.innerHTML=
 
 // ═══ Window / Panels ═══
 function goClose(){ipcRenderer.invoke('win-hide');}function goMini(){ipcRenderer.invoke('win-size','mini');Q('app').style.display='none';Q('mini').style.display='flex';}function goExpand(){ipcRenderer.invoke('win-size','normal');Q('mini').style.display='none';Q('app').style.display='flex';}function goLg(){lgMode=!lgMode;ipcRenderer.invoke('win-size',lgMode?'large':'normal');}
-const ALL_PANELS=['dashboard','research','settings','market','tv','portfolio','history','watchlist','review','bot'];
+const ALL_PANELS=['dashboard','research','settings','market','tv','portfolio','paper','history','watchlist','review','bot','help'];
 function togP(name){
   ALL_PANELS.forEach(n=>{const p=Q('pnl-'+n);if(p&&n!==name)p.classList.remove('open');});
   const t=Q('pnl-'+name);if(!t)return;
@@ -347,6 +411,7 @@ function togP(name){
   Q('app').classList.toggle('panel-open',anyOpen);
   if(name==='tv'&&t.classList.contains('open'))tvConn();
   if(name==='history')loadHistory();
+  if(name==='paper')loadVirtualWallet();
 }
 function goHome(){
   ALL_PANELS.forEach(n=>Q('pnl-'+n)?.classList.remove('open'));
@@ -387,6 +452,40 @@ function renderWL(){const list=Q('wl-list');if(!list)return;list.innerHTML=watch
 async function addWL(){const inp=Q('wl-add-input');const sym=inp?.value.trim().toUpperCase();if(!sym)return;if(watchlist.find(w=>w.symbol===sym))return;watchlist.push({symbol:sym,price:null,change:null});inp.value='';renderWL();await ipcRenderer.invoke('save-watchlist',{watchlist});refreshWL();}
 async function delWL(i){watchlist.splice(i,1);renderWL();await ipcRenderer.invoke('save-watchlist',{watchlist});}
 async function refreshWL(){if(!watchlist.length)return;const syms=watchlist.map(w=>w.symbol);const r=await ipcRenderer.invoke('batch-prices',{symbols:syms});if(r.ok){r.results.forEach(res=>{const w=watchlist.find(x=>x.symbol===res.symbol);if(w&&!res.error){w.price=res.price;w.change=res.change;}});renderWL();await ipcRenderer.invoke('save-watchlist',{watchlist});}}
+function queueBucket(row){
+  const s=row.score||{},chg=Math.abs(parseFloat(row.change)||0),risk=s.risk||0,overall=s.overall||0,event=s.event||0,technical=s.technical||0;
+  if(risk>=70||parseFloat(row.change)<-3)return'risk';
+  if(overall>=72||chg>=3||event>=68)return'must';
+  if(overall>=52||technical>=58)return'observe';
+  return'skip';
+}
+function queueCard(row){
+  const s=row.score||{},chg=parseFloat(row.change)||0,clr=s.overall>=70?'var(--ac)':s.overall>=50?'var(--am)':'var(--rd)';
+  return'<div class="rq-card" onclick="loadMkt(\''+esc(row.symbol)+'\')"><div class="rq-head"><span class="rq-sym">'+esc(row.symbol)+'</span><span class="rq-score" style="color:'+clr+'">'+(s.overall||'—')+'</span></div><div class="rq-meta"><span>'+(chg>0?'+':'')+sf(chg,2)+'%</span><span>RSI '+(row.rsi||'—')+'</span><span>风险 '+(s.risk||'—')+'</span></div><div class="rq-reason">'+esc(row.trend||'等待更多行情确认')+'</div><div class="rq-actions"><button onclick="event.stopPropagation();loadMkt(\''+esc(row.symbol)+'\')">行情</button><button onclick="event.stopPropagation();Q(\'sym-research\').value=\''+esc(row.symbol)+'\';togP(\'research\')">研究</button></div></div>';
+}
+async function buildResearchQueue(){
+  const box=Q('wl-score');
+  if(!box)return;
+  if(!watchlist.length){
+    box.innerHTML='<div class="rq-wrap"><div class="rq-hero"><div><div class="rq-kicker">Research Queue</div><div class="rq-main">先添加几只自选股</div></div></div><div class="rq-empty">在下面输入框添加股票代码，例如 NVDA、TSLA、AAPL，然后再点“研究队列”。</div></div>';
+    return;
+  }
+  if(!ipcRenderer?.invoke){
+    box.innerHTML='<div class="errc">当前是在普通 file 页面里预览，研究队列需要从 StockAI Electron 应用里打开才可以读取行情和评分。</div>';
+    return;
+  }
+  box.innerHTML='<div style="font-size:11px;color:var(--tx3);padding:8px">正在生成研究队列...</div>';
+  let r;
+  try{r=await ipcRenderer.invoke('score-watchlist',{symbols:watchlist.map(w=>w.symbol)});}
+  catch(e){box.innerHTML='<div class="errc">生成失败：'+esc(e.message||e)+'</div>';return;}
+  if(!r.ok){box.innerHTML='<div class="errc">'+esc(r.error||'生成失败')+'</div>';return;}
+  const groups={must:[],observe:[],risk:[],skip:[]};
+  (r.rows||[]).filter(x=>!x.error).forEach(row=>groups[queueBucket(row)].push(row));
+  Object.values(groups).forEach(arr=>arr.sort((a,b)=>(b.score?.overall||0)-(a.score?.overall||0)));
+  const section=(key,title,hint)=>'<div class="rq-section rq-'+key+'"><div class="rq-title">'+title+'<span>'+groups[key].length+'</span></div><div class="rq-hint">'+hint+'</div>'+(groups[key].length?groups[key].map(queueCard).join(''):'<div class="rq-empty">暂无</div>')+'</div>';
+  const html='<div class="rq-wrap"><div class="rq-hero"><div><div class="rq-kicker">Research Queue</div><div class="rq-main">今天先看哪里，一眼就知道</div></div><button onclick="buildResearchQueue()">刷新</button></div>'+section('must','今天必看','高分、异动或事件驱动，优先研究原因和触发条件。')+section('risk','风险升高','波动、下跌或风险分偏高，适合先看风险。')+section('observe','继续观察','条件还没完全成熟，适合加入观察清单。')+section('skip','暂时忽略','优先级较低，今天不用花太多时间。')+'</div>';
+  if(box)box.innerHTML=html;
+}
 async function analyzeWatchlist(){
   const ak=activeAPIKey();if(!ak){togP('settings');return;}
   if(!watchlist.length){addMsg('ai','<div class="errc">请先添加自选股</div>',1);return;}
@@ -492,7 +591,10 @@ async function initDashboard(){
 
 async function refreshDashboard(){
   const body=Q('dash-body');if(!body)return;
-  if(!portfolio.length&&!watchlist.length){body.innerHTML='<div class="dash-verdict"><div class="dash-verdict-lbl">AI 股票研究首页</div><div class="dash-verdict-txt">添加自选股后，这里会显示每日摘要、风险温度、财报提醒、异动股票和 AI 研究重点。</div></div><div class="dash-grid"><div class="dash-card"><div class="dc-title">下一步</div><div style="font-size:11px;color:var(--tx2)">先到自选股面板添加 NVDA、TSLA、AAPL 或日股代码。</div></div><div class="dash-card"><div class="dc-title">研究模块</div><div style="font-size:11px;color:var(--tx2)">可用财报解读、新闻解释、交易复盘和评分系统。</div></div></div>';return;}
+  if(!virtualWallet)await loadVirtualWallet();
+  if(!portfolio.length&&!watchlist.length){
+    const vw=virtualWallet,ret=parseFloat(vw?.totalReturnPct||0);
+    body.innerHTML='<div class="dash-verdict"><div class="dash-verdict-lbl">AI 股票研究首页</div><div class="dash-verdict-txt">添加自选股后，这里会显示每日摘要、风险温度、财报提醒、异动股票和 AI 研究重点。你也可以先用虚拟训练中心做模拟交易。</div></div><div class="dash-grid"><div class="dash-card" onclick="togP(\'paper\')" style="cursor:pointer"><div class="dc-title">虚拟训练中心</div><div style="font-size:18px;font-weight:800;font-family:\'IBM Plex Mono\',monospace">$'+sf(vw?.totalEquity||100000,0)+'</div><div style="font-size:10px;color:'+(ret>=0?'var(--ac)':'var(--rd)')+';font-family:\'IBM Plex Mono\',monospace">'+(ret>=0?'+':'')+sf(ret,2)+'%</div></div><div class="dash-card"><div class="dc-title">下一步</div><div style="font-size:11px;color:var(--tx2)">添加自选股，或在虚拟训练中心买入一笔模拟仓位。</div></div></div>';return;}
   body.innerHTML='<div style="text-align:center;color:var(--tx3);padding:12px;font-size:11px">データ取得中...</div>';
   const portSyms=portfolio.filter(p=>p.symbol).map(p=>p.symbol.toUpperCase());
   const wlSyms=watchlist.map(w=>w.symbol);
@@ -504,12 +606,26 @@ async function refreshDashboard(){
   // Fetch earnings for portfolio symbols
   const er=portSyms.length?await ipcRenderer.invoke('earnings-data',{symbols:portSyms.slice(0,10)}):{ok:false};
   const earningsMap={};if(er.ok)er.results.forEach(e=>{earningsMap[e.symbol]=e.earningsDate;});
-  dashData={priceMap,earningsMap,portSyms,wlSyms};
+  const hr=await ipcRenderer.invoke('check-signal-outcomes');
+  const signalStats=hr.ok?{d7:calcSignalStats(hr.history,'outcome7d'),d30:calcSignalStats(hr.history,'outcome30d')}:null;
+  if(!virtualWallet)await loadVirtualWallet();
+  dashData={priceMap,earningsMap,portSyms,wlSyms,signalStats,virtualWallet};
   renderDashboard(dashData);
 }
 
+function renderTodayTasks({riskLabel,riskScore,earningsSoon,movers,warns,signalStats}){
+  const tasks=[];
+  if(warns.length)tasks.push({k:'风险',t:'检查亏损持仓',d:warns.map(p=>p.symbol).join(', ')+' 跌幅超过 5%，先看是否需要降低风险。',c:'var(--rd)'});
+  if(earningsSoon.length)tasks.push({k:'财报',t:'确认财报日程',d:earningsSoon.slice(0,3).map(e=>e.symbol+' '+(e.days===0?'今天':e.days+'天后')).join(' · '),c:'var(--am)'});
+  if(movers.length)tasks.push({k:'异动',t:'解释异常波动',d:movers.slice(0,3).map(m=>m.symbol+' '+(m.change>0?'+':'')+sf(m.change,2)+'%').join(' · '),c:'var(--bl)'});
+  if(signalStats?.d7)tasks.push({k:'复盘',t:'查看 AI 判断表现',d:'7日命中率 '+signalStats.d7.winRate+'%，平均 '+(parseFloat(signalStats.d7.avg)>=0?'+':'')+signalStats.d7.avg+'%。',c:signalStats.d7.winRate>=60?'var(--ac)':'var(--am)'});
+  if(riskScore>=7)tasks.push({k:'组合',t:'今日风险温度偏高',d:'当前 '+riskLabel+'，优先看风险，不急着增加新仓位。',c:'var(--rd)'});
+  if(!tasks.length)tasks.push({k:'开始',t:'生成今日研究队列',d:'到自选股里点“研究队列”，先确定今天最值得看的股票。',c:'var(--ac)'});
+  return'<div class="task-board"><div class="task-head"><span>今日任务清单</span><button onclick="togP(\'watchlist\')">去自选</button></div>'+tasks.slice(0,5).map(x=>'<div class="task-row"><span class="task-key" style="color:'+x.c+';border-color:'+x.c+'">'+esc(x.k)+'</span><div><div class="task-title">'+esc(x.t)+'</div><div class="task-desc">'+esc(x.d)+'</div></div></div>').join('')+'</div>';
+}
+
 function renderDashboard(data){
-  const {priceMap,earningsMap,portSyms}=data;
+  const {priceMap,earningsMap,portSyms,signalStats}=data;
   const body=Q('dash-body');if(!body)return;
   // Risk temperature from P&L
   const portWithP=portfolio.filter(p=>p.symbol&&p.avgCost&&priceMap[p.symbol.toUpperCase()]);
@@ -531,6 +647,7 @@ function renderDashboard(data){
   const warns=portWithP.filter(p=>{const cur=priceMap[p.symbol.toUpperCase()];return cur?.price&&(cur.price-parseFloat(p.avgCost))/parseFloat(p.avgCost)*100<-5;});
 
   let h='';
+  h+=renderTodayTasks({riskLabel,riskScore,earningsSoon,movers,warns,signalStats});
   // Risk + Earnings row
   h+='<div class="dash-grid">';
   h+='<div class="dash-card"><div class="dc-title">🌡 リスク温度</div><div style="font-size:18px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;color:'+riskClr+'">'+riskLabel+'</div><div class="rtemp"><div class="rtemp-bar"><div class="rtemp-fill" style="width:'+(riskScore*10)+'%;background:'+riskClr+'"></div></div><span style="font-size:10px;font-family:\'IBM Plex Mono\',monospace;color:'+riskClr+'">'+riskScore+'/10</span></div></div>';
@@ -538,6 +655,16 @@ function renderDashboard(data){
   if(!earningsSoon.length)h+='<div style="font-size:11px;color:var(--tx3)">2週間内なし</div>';
   else h+=earningsSoon.slice(0,4).map(e=>'<div class="earn-row'+(e.days===0?' today':e.days<=3?' soon':'')+'"><span class="earn-sym">'+esc(e.symbol)+'</span><span class="earn-days">'+(e.days===0?'⚠️ 今日':e.days===1?'明日':e.days+'日後')+'</span></div>').join('');
   h+='</div></div>';
+  const vw=data.virtualWallet||virtualWallet;
+  if(vw){
+    const ret=parseFloat(vw.totalReturnPct||0);
+    const retClr=ret>=0?'var(--ac)':'var(--rd)';
+    h+='<div class="dash-grid">';
+    h+='<div class="dash-card" onclick="togP(\'paper\')" style="cursor:pointer"><div class="dc-title">虚拟训练中心</div><div style="font-size:18px;font-weight:800;font-family:\'IBM Plex Mono\',monospace">$'+sf(vw.totalEquity,0)+'</div><div style="font-size:10px;color:'+retClr+';font-family:\'IBM Plex Mono\',monospace">'+(ret>=0?'+':'')+sf(ret,2)+'% · Cash $'+sf(vw.cash,0)+'</div></div>';
+    const s7=signalStats?.d7;
+    h+='<div class="dash-card" onclick="togP(\'history\')" style="cursor:pointer"><div class="dc-title">AI 判断复盘</div>'+(s7?'<div style="font-size:18px;font-weight:800;font-family:\'IBM Plex Mono\',monospace;color:'+(s7.winRate>=60?'var(--ac)':s7.winRate>=45?'var(--am)':'var(--rd)')+'">'+s7.winRate+'%</div><div style="font-size:10px;color:var(--tx2)">7日命中 '+s7.wins+'/'+s7.total+' · 平均 '+(parseFloat(s7.avg)>=0?'+':'')+s7.avg+'%</div>'+(signalStats?.d30?'<div style="font-size:10px;color:var(--tx3)">30日 '+signalStats.d30.winRate+'% · '+signalStats.d30.wins+'/'+signalStats.d30.total+'</div>':''):'<div style="font-size:11px;color:var(--tx3)">等待 7 日结果</div>')+'</div>';
+    h+='</div>';
+  }
   // Stop-loss warnings
   if(warns.length)h+='<div style="background:var(--rd2);border:1px solid var(--rdb);border-radius:var(--r);padding:8px 10px;margin-bottom:6px"><div style="font-size:9px;font-weight:700;color:var(--rd);margin-bottom:4px;font-family:IBM Plex Mono,monospace">⛔ 損失警告 (>-5%)</div>'+warns.map(p=>{const cur=priceMap[p.symbol.toUpperCase()];const pnl=((cur.price-parseFloat(p.avgCost))/parseFloat(p.avgCost)*100).toFixed(1);return'<div style="font-size:11px;color:var(--rd)">'+esc(p.symbol)+' '+pnl+'%</div>';}).join('')+'</div>';
   // Abnormal movers
@@ -545,14 +672,15 @@ function renderDashboard(data){
   // Watchlist daily research surface
   h+='<div style="margin-bottom:8px"><div class="dc-title">📌 自选股日报</div><div id="dash-brief-body">'+watchlist.slice(0,8).map(w=>{const ch=parseFloat(w.change)||0;return'<div class="ev-item" onclick="loadMkt(\''+esc(w.symbol)+'\')"><div class="ev-hd"><span class="ev-sym">'+esc(w.symbol)+'</span><span class="ev-urg" style="color:'+(ch>0?'var(--ac)':ch<0?'var(--rd)':'var(--tx3)')+'">'+(ch>0?'+':'')+sf(ch,2)+'%</span></div><div class="ev-desc">等待 AI 生成：今天为什么涨/跌、最大风险、下一步关注。</div></div>';}).join('')+'</div></div>';
   // AI analysis buttons
-  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="mbn" onclick="runDailyBrief()" style="width:100%;background:var(--bl2);color:var(--bl);border-color:var(--blb);margin-top:2px">每日自选股简报</button><button class="mbn" onclick="runAIDashboard()" style="width:100%;background:var(--pu2);color:var(--pu);border-color:var(--pub);margin-top:2px">组合重点分析</button></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><button class="mbn" onclick="runSessionBrief(\'open\')" style="width:100%;background:var(--ac2);color:var(--ac);border-color:var(--acb);margin-top:2px">开盘前日报</button><button class="mbn" onclick="runSessionBrief(\'close\')" style="width:100%;background:var(--am2);color:var(--am);border-color:var(--amb);margin-top:2px">收盘后复盘</button><button class="mbn" onclick="runDailyBrief()" style="width:100%;background:var(--bl2);color:var(--bl);border-color:var(--blb);margin-top:2px">自选股日报</button></div>';
   body.innerHTML=h;
 }
 
 async function runAIDashboard(){
   const ak=activeAPIKey();if(!ak){togP('settings');return;}
   const aiBtn=Q('dash-ai-btn');if(aiBtn){aiBtn.disabled=true;aiBtn.textContent='分析中...';}
-  const thk=showThk('🤖 今日のポートフォリオ状況を分析中...');
+  const modeLabel=dashboardBriefMode==='open'?'开盘前日报':dashboardBriefMode==='close'?'收盘后复盘':'今日概况';
+  const thk=showThk('🤖 正在生成'+modeLabel+'...');
   const r=await ipcRenderer.invoke('portfolio-dashboard',{key:ak,model:activeModel(),lang,portfolio:portfolio.filter(p=>p.symbol),watchlist,earningsData:dashData?.earningsMap||{}});
   thk.remove();
   if(aiBtn){aiBtn.disabled=false;aiBtn.textContent='🤖 AI分析';}
@@ -562,7 +690,7 @@ async function runAIDashboard(){
   if(body){
     let h='';
     // Daily verdict
-    if(d.dailyVerdict)h+='<div class="dash-verdict"><div class="dash-verdict-lbl">📋 今日のまとめ</div><div class="dash-verdict-txt">'+esc(d.dailyVerdict)+'</div></div>';
+    if(d.dailyVerdict)h+='<div class="dash-verdict"><div class="dash-verdict-lbl">'+esc(modeLabel)+'</div><div class="dash-verdict-txt">'+esc(d.dailyVerdict)+'</div></div>';
     // Risk + Earnings
     const riskClr=d.riskLabel==='LOW'?'var(--ac)':d.riskLabel==='MEDIUM'?'var(--am)':'var(--rd)';
     const riskPct=(d.riskTemperature||5)*10;
@@ -585,11 +713,53 @@ async function runAIDashboard(){
     body.innerHTML=h;
   }
   // Also post a compact summary to chat
-  let chatH='<div class="briefing"><div class="briefing-title">📋 今日のポートフォリオ概況</div>';
+  let chatH='<div class="briefing"><div class="briefing-title">📋 '+esc(modeLabel)+'</div>';
   if(d.dailyVerdict)chatH+='<div style="font-size:12px;color:var(--tx2);margin-bottom:8px;padding:6px 8px;background:var(--bg3);border-radius:6px">'+esc(d.dailyVerdict)+'</div>';
   if(d.topEvents?.length)chatH+=d.topEvents.map(ev=>'<div class="briefing-item" onclick="loadMkt(\''+esc(ev.symbol||'')+'\')"><span class="briefing-sym">'+esc(ev.symbol||'')+'</span><span style="font-size:10px;color:var(--tx2)">'+esc((ev.event||'').slice(0,70))+'</span></div>').join('');
   chatH+='</div>';
   addMsg('ai',chatH,1);
+  dashboardBriefMode='daily';
+}
+async function runSessionBrief(mode){dashboardBriefMode=mode;await refreshDashboard();await runAIDashboard();}
+
+// ═══ Virtual Wallet / Paper Simulator ═══
+async function loadVirtualWallet(){
+  const r=await ipcRenderer.invoke('virtual-wallet-load');
+  if(r.ok){virtualWallet=r.wallet;renderVirtualWallet();}
+}
+function renderVirtualWallet(){
+  const w=virtualWallet;if(!w)return;
+  const equity=Q('vw-equity'),cash=Q('vw-cash'),ret=Q('vw-return'),pos=Q('vw-positions'),tr=Q('vw-trades');
+  if(equity)equity.textContent='$'+sf(w.totalEquity,2);
+  if(cash)cash.textContent='$'+sf(w.cash,2);
+  if(ret){const pct=parseFloat(w.totalReturnPct||0);ret.textContent=(pct>=0?'+':'')+sf(pct,2)+'%';ret.style.color=pct>=0?'var(--ac)':'var(--rd)';}
+  if(pos){
+    const rows=Object.values(w.positions||{}).filter(p=>p.qty>0);
+    pos.innerHTML=rows.length?rows.map(p=>'<div class="vw-row" onclick="loadMkt(\''+esc(p.symbol)+'\')"><span class="vw-sym">'+esc(p.symbol)+'</span><span>'+sf(p.qty,2)+' 股</span><span>$'+sf(p.lastPrice||p.avgCost,2)+'</span><span style="margin-left:auto;color:'+(p.unrealized>=0?'var(--ac)':'var(--rd)')+'">'+(p.unrealized>=0?'+':'')+'$'+sf(p.unrealized,2)+' ('+(p.unrealizedPct>=0?'+':'')+sf(p.unrealizedPct,2)+'%)</span></div>').join(''):'<div class="vw-empty">暂无虚拟持仓。买入一笔后，这里会显示成本、现价和浮动盈亏。</div>';
+  }
+  if(tr){
+    const trades=w.trades||[];
+    tr.innerHTML=trades.length?trades.slice(0,20).map(o=>{const d=o.discipline||{},dc=d.score>=82?'var(--ac)':d.score>=68?'var(--am)':'var(--rd)';return'<div class="vw-trade"><span class="vw-side '+o.side+'">'+o.side.toUpperCase()+'</span><span class="vw-sym">'+esc(o.symbol)+'</span><span>'+sf(o.qty,2)+' @ $'+sf(o.price,2)+'</span>'+(d.score?'<span class="disc-badge" style="color:'+dc+';border-color:'+dc+'">纪律 '+d.label+' '+d.score+'</span>':'')+'<span style="margin-left:auto;color:var(--tx3)">'+new Date(o.time).toLocaleDateString()+'</span></div>'+(d.flags?.length?'<div class="disc-note">'+esc(d.flags.join(' · '))+'</div>':'');}).join(''):'<div class="vw-empty">暂无模拟交易记录。</div>';
+  }
+}
+async function submitVirtualTrade(side){
+  const symbol=(Q('vw-symbol')?.value||mktData?.sym||tvData?.sym||'').trim().toUpperCase();
+  const qty=parseFloat(Q('vw-qty')?.value||'');
+  const note=(Q('vw-note')?.value||'').trim();
+  if(!symbol||!qty){alert('请输入股票代码和数量');return;}
+  const r=await ipcRenderer.invoke('virtual-trade',{symbol,side,qty,note});
+  if(r.error){alert(r.error);return;}
+  virtualWallet=r.wallet;renderVirtualWallet();
+  if(Q('vw-note'))Q('vw-note').value='';
+  const latest=virtualWallet.trades?.[0],disc=latest?.discipline;
+  addMsg('ai','<div class="briefing"><div class="briefing-title">虚拟交易已记录</div><div class="briefing-item"><span class="briefing-sym">'+esc(symbol)+'</span><span>'+side.toUpperCase()+' '+sf(qty,2)+' 股</span><span style="margin-left:auto">权益 $'+sf(virtualWallet.totalEquity,2)+'</span></div>'+(disc?'<div class="why-box"><div class="why-lbl">交易纪律评分</div><div class="why-txt">Grade '+esc(disc.label)+' · '+disc.score+'/100'+(disc.flags?.length?' · '+esc(disc.flags.join(' · ')):'')+'</div></div>':'')+'</div>',1);
+  if(Q('pnl-dashboard')?.classList.contains('open'))refreshDashboard();
+}
+async function resetVirtualWallet(){
+  const cash=parseFloat(prompt('设置新的虚拟本金',virtualWallet?.initialCash||100000));
+  if(!cash)return;
+  const r=await ipcRenderer.invoke('virtual-wallet-reset',{cash});
+  if(r.ok){virtualWallet=r.wallet;renderVirtualWallet();if(Q('pnl-dashboard')?.classList.contains('open'))refreshDashboard();}
 }
 
 // ═══ Portfolio ═══
@@ -599,15 +769,30 @@ function addPortRow(){portfolio.push({symbol:'',shares:'',avgCost:''});renderPor
 function updPort(i,k,v){portfolio[i][k]=v;savePort();}
 function delPort(i){portfolio.splice(i,1);renderPort();savePort();}
 async function savePort(){await ipcRenderer.invoke('save-portfolio',{portfolio});}
-function calcSignalStats(history){const withO=history.filter(h=>h.outcome7d&&h.price);if(!withO.length)return null;const results=withO.map(h=>{const sig=(h.signal||'').toUpperCase();const chg=h.outcome7d.change;const bull=sig.includes('BUY')||sig.includes('BULL');const bear=sig.includes('SELL')||sig.includes('BEAR');const hit=bull?chg>0:bear?chg<0:Math.abs(chg)<3;return{hit,chg:bull||!bear?chg:-chg};});const wins=results.filter(r=>r.hit).length;const avg=results.reduce((a,r)=>a+r.chg,0)/results.length;return{total:results.length,wins,winRate:Math.round(wins/results.length*100),avg:avg.toFixed(1)};}
+function calcSignalStats(history,outcomeKey='outcome7d'){const withO=history.filter(h=>h[outcomeKey]&&h.price);if(!withO.length)return null;const results=withO.map(h=>{const sig=(h.signal||'').toUpperCase();const chg=h[outcomeKey].change;const bull=sig.includes('BUY')||sig.includes('BULL');const bear=sig.includes('SELL')||sig.includes('BEAR');const hit=bull?chg>0:bear?chg<0:Math.abs(chg)<3;return{hit,chg:bull||!bear?chg:-chg};});const wins=results.filter(r=>r.hit).length;const avg=results.reduce((a,r)=>a+r.chg,0)/results.length;return{total:results.length,wins,winRate:Math.round(wins/results.length*100),avg:avg.toFixed(1)};}
+function calcModelStats(history,outcomeKey='outcome7d'){
+  const groups={};
+  history.filter(h=>h[outcomeKey]&&h.price).forEach(h=>{
+    const provider=h.provider||'Unknown',modelName=h.model||'默认模型',key=provider+' · '+modelName;
+    const sig=(h.signal||'').toUpperCase(),chg=h[outcomeKey].change;
+    const bull=sig.includes('BUY')||sig.includes('BULL'),bear=sig.includes('SELL')||sig.includes('BEAR');
+    const hit=bull?chg>0:bear?chg<0:Math.abs(chg)<3;
+    if(!groups[key])groups[key]={provider,model:modelName,total:0,wins:0,avg:0};
+    groups[key].total++;groups[key].wins+=hit?1:0;groups[key].avg+=bull||!bear?chg:-chg;
+  });
+  return Object.values(groups).map(g=>({...g,winRate:Math.round(g.wins/g.total*100),avg:(g.avg/g.total).toFixed(1)})).sort((a,b)=>b.winRate-a.winRate||b.total-a.total).slice(0,5);
+}
 async function loadHistory(){
   const list=Q('hist-list');if(!list)return;
   list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px">確認中...</div>';
   const r=await ipcRenderer.invoke('check-signal-outcomes');
   if(!r.ok||!r.history?.length){list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px" id="hist-empty">'+L[lang].lbl_history+'</div>';return;}
-  const stats=calcSignalStats(r.history);
+  const stats=calcSignalStats(r.history,'outcome7d'),stats30=calcSignalStats(r.history,'outcome30d'),modelStats=calcModelStats(r.history,'outcome7d');
   let html='';
-  if(stats){const sc=stats.winRate>=60?'var(--ac)':stats.winRate>=45?'var(--am)':'var(--rd)';html+='<div class="sig-stats"><span>AI予測精度</span><span style="color:'+sc+';font-weight:700">勝率 '+stats.winRate+'%</span><span style="color:var(--tx2)">'+stats.wins+'/'+stats.total+'件</span><span style="color:'+(parseFloat(stats.avg)>=0?'var(--ac)':'var(--rd)')+'">平均 '+(parseFloat(stats.avg)>=0?'+':'')+stats.avg+'%</span></div>';}
+  if(stats){const sc=stats.winRate>=60?'var(--ac)':stats.winRate>=45?'var(--am)':'var(--rd)';html+='<div class="sig-stats"><span>AI 7日判断复盘</span><span style="color:'+sc+';font-weight:700">胜率 '+stats.winRate+'%</span><span style="color:var(--tx2)">'+stats.wins+'/'+stats.total+'件</span><span style="color:'+(parseFloat(stats.avg)>=0?'var(--ac)':'var(--rd)')+'">平均 '+(parseFloat(stats.avg)>=0?'+':'')+stats.avg+'%</span>'+(stats30?'<span style="color:var(--tx3)">30日 '+stats30.winRate+'% · '+stats30.wins+'/'+stats30.total+'</span>':'')+'</div>';}
+  if(modelStats.length){
+    html+='<div class="sig-stats" style="display:block"><div style="font-weight:800;margin-bottom:6px;color:var(--tx)">模型表现排行榜</div>'+modelStats.map((m,i)=>{const c=m.winRate>=60?'var(--ac)':m.winRate>=45?'var(--am)':'var(--rd)';return'<div style="display:flex;align-items:center;gap:7px;margin:4px 0"><span style="width:18px;color:var(--tx3);font-family:IBM Plex Mono,monospace">#'+(i+1)+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(m.provider)+' · '+esc(m.model)+'</span><span style="color:'+c+';font-weight:800">'+m.winRate+'%</span><span style="color:var(--tx3);font-size:10px">'+m.wins+'/'+m.total+'</span><span style="color:'+(parseFloat(m.avg)>=0?'var(--ac)':'var(--rd)')+';font-size:10px">'+(parseFloat(m.avg)>=0?'+':'')+m.avg+'%</span></div>';}).join('')+'</div>';
+  }
   html+=r.history.slice(0,40).map(h=>{
     const sc=(h.signal==='BUY'||h.signal==='BULLISH')?'sb':(h.signal==='SELL'||h.signal==='BEARISH')?'ss':'sh';
     const sig=(h.signal||'').toUpperCase();const bull=sig.includes('BUY')||sig.includes('BULL');const bear=sig.includes('SELL')||sig.includes('BEAR');
@@ -618,7 +803,7 @@ async function loadHistory(){
   }).join('');
   list.innerHTML=html;
 }
-async function saveHistory(symbol,signal,score,summary,price){await ipcRenderer.invoke('save-history',{entry:{symbol,signal,score,summary:summary?.slice(0,200),price:price||null}});}
+async function saveHistory(symbol,signal,score,summary,price){await ipcRenderer.invoke('save-history',{entry:{symbol,signal,score,summary:summary?.slice(0,200),price:price||null,provider:activeProvider(),model:activeModel()}});}
 
 
 // ═══ Market Data ═══
@@ -929,6 +1114,7 @@ function togBotSecret(){
 async function botConnect(){
   const keyId=Q('bot-key-id').value.trim(),secret=Q('bot-key-secret').value.trim();
   const msg=Q('bot-connect-msg');
+  if(!isElectron){msg.style.color='var(--rd)';msg.textContent='❌ 当前是页面预览版，只能看界面。请用 Electron 版 StockAI 打开后再连接 Paper Trading。';return;}
   if(!keyId||!secret){msg.style.color='var(--rd)';msg.textContent=L[lang].bot_enter_key;return;}
   msg.style.color='var(--tx3)';msg.textContent=L[lang].bot_connecting;
   let r;

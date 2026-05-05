@@ -5,6 +5,7 @@ const allowedInvoke = new Set([
   'market-data','run-lite','run-agents','ai','multi-ai','agent-chat',
   'auto-start','auto-stop','save-history','load-history',
   'save-portfolio','load-portfolio','save-watchlist','load-watchlist',
+  'virtual-wallet-load','virtual-wallet-reset','virtual-trade',
   'batch-prices','earnings-data','portfolio-dashboard',
   'company-research','news-brief','trade-review','score-watchlist','watchlist-daily-brief',
   'tv-connect','tv-state','tv-symbol','tv-set-pine','tv-compile',
