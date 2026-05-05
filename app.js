@@ -1090,11 +1090,10 @@ async function saveBotKeys(){
   botKeyId=keyId;botSecret=secret;
   Q('bot-key-id').value=keyId;Q('bot-key-secret').value=secret;
   botKeyDisplayUpdate(keyId);
-  togBotKeyEdit();
   if(msg){msg.style.color='var(--ac)';msg.textContent='✓ 已保存并连接';}
   setTimeout(()=>{if(Q('bot-key-cfg-msg'))Q('bot-key-cfg-msg').textContent='';},3000);
   renderBotAccount(r.account,[],r.clock);
-  Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';
+  showBotWorkspace('dash');
 }
 async function resetBotKeysFromCfg(){
   await stockai.invoke('alpaca-delete-keys');
@@ -1102,7 +1101,7 @@ async function resetBotKeysFromCfg(){
   Q('bot-key-id').value='';Q('bot-key-secret').value='';
   botKeyDisplayUpdate('');
   const banner=Q('bot-saved-banner');if(banner)banner.style.display='none';
-  Q('bot-account').classList.remove('visible');Q('bot-account').style.display='none';Q('bot-setup').style.display='block';
+  showBotWorkspace('cfg');
   const msg=Q('bot-key-cfg-msg');
   if(msg){msg.style.color='var(--tx3)';msg.textContent='🗑 已重置，请重新连接';}
 }
@@ -1122,6 +1121,7 @@ async function initBotPanel(){
     const banner=Q('bot-saved-banner');if(banner)banner.style.display='flex';
     botKeyDisplayUpdate(r.keyId);
   }
+  showBotWorkspace(botCurrentTab||'dash');
   const st=await stockai.invoke('bot-status');
   if(st.ok){
     botIsRunning=st.running;
@@ -1140,13 +1140,25 @@ async function initBotPanel(){
       if(st.config.limitSlippagePct!=null&&Q('bot-slip'))Q('bot-slip').value=st.config.limitSlippagePct;
     }
     if(st.logs.length)renderBotLogs(st.logs);
-    if(r.keyId&&r.secret){Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';botRefresh();}
+    if(r.keyId&&r.secret)botRefresh();
     updateBotRunningUI(botIsRunning);
     if(botIsRunning)startBotNextCycleTimer(st.config?.intervalMinutes||15);
   }
   updateBotMarketStatus();
   setInterval(updateBotMarketStatus,60000);
   applyBotLang();
+}
+
+function showBotWorkspace(tab='dash'){
+  const setup=Q('bot-setup'),account=Q('bot-account');
+  if(setup)setup.style.display='none';
+  if(account){account.classList.add('visible');account.style.display='flex';}
+  switchBotTab(tab);
+  const msg=Q('bot-key-cfg-msg');
+  if(msg&&!botKeyId&&!botSecret){
+    msg.style.color='var(--tx3)';
+    msg.textContent='先在这里保存 Alpaca Paper API Key，保存后仪表盘会显示真实模拟账户。';
+  }
 }
 
 function switchBotTab(tab){
@@ -1186,7 +1198,7 @@ async function botConnect(){
   botKeyId=keyId;botSecret=secret;msg.textContent='';
   const banner=Q('bot-saved-banner');if(banner)banner.style.display='flex';
   botKeyDisplayUpdate(keyId);
-  Q('bot-setup').style.display='none';Q('bot-account').classList.add('visible');Q('bot-account').style.display='flex';
+  showBotWorkspace('dash');
   applyBotLang();
   renderBotAccount(r.account,[],r.clock);
 }
