@@ -21,6 +21,8 @@ jobs:
       APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
       APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,11 +49,11 @@ jobs:
           cache: npm
 
       - name: Import Apple signing certificate
-        if: ${{ secrets.APPLE_CERTIFICATE_P12 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+        if: ${{ env.APPLE_CERTIFICATE_P12 != '' && env.APPLE_CERTIFICATE_PASSWORD != '' }}
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          p12-file-base64: ${{ env.APPLE_CERTIFICATE_P12 }}
+          p12-password: ${{ env.APPLE_CERTIFICATE_PASSWORD }}
 
       - name: Install dependencies
         run: npm ci
@@ -63,7 +65,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -n "${APPLE_API_KEY}" ] && [ -n "${APPLE_API_KEY_ID}" ] && [ -n "${APPLE_API_ISSUER}" ] && [ -n "${{ secrets.APPLE_CERTIFICATE_P12 }}" ]; then
+          if [ -n "${APPLE_API_KEY}" ] && [ -n "${APPLE_API_KEY_ID}" ] && [ -n "${APPLE_API_ISSUER}" ] && [ -n "${APPLE_CERTIFICATE_P12}" ]; then
             echo "Signed + notarized macOS release build"
             npx electron-builder --mac dmg zip --arm64
             npx electron-builder --mac dmg zip --x64
