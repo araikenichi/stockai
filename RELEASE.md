@@ -33,6 +33,21 @@ After that, GitHub Actions will:
 3. build macOS `dmg` and `zip`
 4. upload them to the GitHub Release page automatically
 
+### Recommended signing setup
+
+To reduce macOS warnings such as "app is damaged" or blocked first launch prompts,
+configure these GitHub repository secrets:
+
+1. `APPLE_CERTIFICATE_P12`
+2. `APPLE_CERTIFICATE_PASSWORD`
+3. `APPLE_API_KEY`
+4. `APPLE_API_KEY_ID`
+5. `APPLE_API_ISSUER`
+
+When these are present, the workflow will try to produce a signed + notarized build.
+Without them, it falls back to an unsigned build, which still works but is more likely
+to trigger Gatekeeper warnings on downloaded apps.
+
 ### Manual release
 
 1. Create a new GitHub Release.

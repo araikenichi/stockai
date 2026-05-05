@@ -16,6 +16,10 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,6 +45,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Import Apple signing certificate
+        if: ${{ secrets.APPLE_CERTIFICATE_P12 != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
       - name: Install dependencies
         run: npm ci
 
@@ -50,13 +61,42 @@ jobs:
       - name: Build install packages
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist
+        run: |
+          if [ -n "${APPLE_API_KEY}" ] && [ -n "${APPLE_API_KEY_ID}" ] && [ -n "${APPLE_API_ISSUER}" ] && [ -n "${{ secrets.APPLE_CERTIFICATE_P12 }}" ]; then
+            echo "Signed + notarized macOS release build"
+            npx electron-builder --mac dmg zip --arm64
+            npx electron-builder --mac dmg zip --x64
+          else
+            echo "Unsigned fallback build (no Apple signing/notarization secrets configured)"
+            npm run dist
+          fi
+
+      - name: Prepare release notes
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## StockAI Release
+
+          - Built automatically from GitHub Actions
+          - Includes macOS `.dmg` and `.zip` assets
+
+          ### Install notes
+
+          - Drag `StockAI.app` into `Applications` before opening
+          - If this release was built without Apple signing/notarization secrets, macOS may show a warning on first launch
+          - Signed + notarized builds require these repository secrets:
+            - `APPLE_CERTIFICATE_P12`
+            - `APPLE_CERTIFICATE_PASSWORD`
+            - `APPLE_API_KEY`
+            - `APPLE_API_KEY_ID`
+            - `APPLE_API_ISSUER`
+          EOF
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
+          body_path: release-notes.md
           files: |
             dist/*.dmg
             dist/*.zip
