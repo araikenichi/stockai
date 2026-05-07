@@ -4,7 +4,7 @@ var stockai=window.stockai||{
   on:()=>()=>{}
 };
 const ipcRenderer=stockai;
-window.__stockaiRuntime={electron:isElectron,loadedAt:new Date().toISOString(),version:'2.0.12'};
+window.__stockaiRuntime={electron:isElectron,loadedAt:new Date().toISOString(),version:'2.0.13'};
 window.addEventListener('error',e=>console.error('[StockAI renderer error]',e.message,e.filename,e.lineno,e.colno));
 window.addEventListener('unhandledrejection',e=>console.error('[StockAI promise error]',e.reason?.stack||e.reason?.message||e.reason));
 let key='',lang='zh',model='gemini-2.5-flash',keyClaude='',keyOpenAI='',keyDeepSeek='';
@@ -17,12 +17,12 @@ let enterReady=false,smartOn=false,liveData=null,userTriggers=[];
 let chats=[{id:0,name:'Chat 1',hist:[],msgs:[]}],activeChat=0,chatIdCounter=1;
 
 const L={
-  ja:{ph:'銘柄コードや質問を入力',li:'日本語で回答してください。',reason:'分析理由',result:'分析結果',summary:'まとめ',conclusion:'結論',buy:'強気 ▲',sell:'弱気 ▼',hold:'中立 ◆',wait:'観察 ◇',wlcTitle:'AI株式研究アシスタント',wlc:'銘柄コードやTradingViewチャートから、相場要約・リスク・注目材料・観察ポイントを整理します。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
+  ja:{ph:'銘柄コードや質問を入力',li:'日本語で回答してください。',reason:'分析理由',result:'分析結果',summary:'まとめ',conclusion:'結論',buy:'強気 ▲',sell:'弱気 ▼',hold:'中立 ◆',wait:'観察 ◇',wlcTitle:'今日は何を見るべき？',wlc:'今日の機会、リスク、復盤、自選銘柄の異動、AIの観察提案から始めます。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
     tb_capture:'スクリーン',tb_chart:'チャート分析',tb_quick:'クイック分析',tb_full:'詳細分析',tb_consensus:'AI合議',tb_monitor:'リアルタイム監視',
     btn_save:'保存',btn_fetch:'取得',btn_add:'+ 追加',btn_update:'更新',btn_analyze:'分析',
     lbl_lang:'言語',lbl_free:'無料',lbl_ticker:'ティッカーを入力',lbl_history:'分析履歴なし',lbl_symbol:'銘柄変更',lbl_newchat:'新規チャット',lbl_analyzing:'分析中...',lbl_briefing:'おはようございます',
     pnl_market:'マーケット',pnl_portfolio:'ポートフォリオ',pnl_history:'履歴',pnl_watchlist:'ウォッチリスト',wlcApi:'APIキー設定',wlcMarket:'銘柄を調べる',wlcWatch:'ウォッチ管理',wlcQuick:'クイック分析',wlcQuickDesc:'場中の方向感とリスクを素早く確認。',wlcDeep:'詳細分析',wlcDeepDesc:'複数エージェントで材料、リスク、観察条件を整理。',wlcLive:'リアルタイム監視',wlcLiveDesc:'価格、RSI、MACD、異常変動を検知。',wlcPort:'ポートフォリオ概況',wlcPortDesc:'保有・監視銘柄、決算、リスク温度を確認。',
-    entry_now:'即エントリー可能',entry_wait:'条件待ち',entry_avoid:'回避推奨',dash_title:'今日の概況',why_matters:'あなたに関係する理由',time_horizon:'時間軸',risk_level:'リスク',
+    entry_now:'即エントリー可能',entry_wait:'条件待ち',entry_avoid:'回避推奨',dash_title:'今日は何を見るべき？',why_matters:'あなたに関係する理由',time_horizon:'時間軸',risk_level:'リスク',
     bot_tab_dash:'ダッシュボード',bot_tab_hist:'取引履歴',bot_tab_cfg:'設定・ログ',
     bot_start:'▶ ボット起動',bot_stop:'■ 停止',bot_running:'ボット稼働中',bot_no_pos:'ポジションなし',bot_open_pos:'オープンポジション',
     bot_chart_title:'資産推移',bot_no_data:'データなし（ボット稼働後に記録されます）',
@@ -40,12 +40,12 @@ const L={
     bot_run_once:'⚡ 即時実行',bot_running_cycle:'実行中…',bot_max_concurrent:'🔒 同時保有上限',bot_slip:'📐 指値スリッページ(%)',
     nav_today:'今日',nav_research:'研究',nav_paper:'練習',nav_bot:'ロボット',nav_more:'その他',
     coach_today_title:'📊 今日',coach_today_desc:'まずタスク、リスク、研究キューを確認。',coach_research_title:'研究',coach_research_desc:'クイック、詳細、複数モデル、決算、ニュースはここ。',coach_paper_title:'$ 練習',coach_paper_desc:'取引規律を練習。実資金口座には接続しません。',coach_bot_title:'🤖 ロボット',coach_bot_desc:'Paper口座ロボットの入口は上部にあります。'},
-  en:{ph:'Ask about a ticker or chart',li:'Reply in English.',reason:'Reasoning',result:'Analysis',summary:'Summary',conclusion:'Conclusion',buy:'Bullish ▲',sell:'Bearish ▼',hold:'Neutral ◆',wait:'Watch ◇',wlcTitle:'AI Stock Research Assistant',wlc:'Enter a ticker or connect TradingView to understand market context, risks, catalysts, and observation points.',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
+  en:{ph:'Ask about a ticker or chart',li:'Reply in English.',reason:'Reasoning',result:'Analysis',summary:'Summary',conclusion:'Conclusion',buy:'Bullish ▲',sell:'Bearish ▼',hold:'Neutral ◆',wait:'Watch ◇',wlcTitle:'What should I watch today?',wlc:'Start with today\'s opportunities, risks, reviews, watchlist movers, and AI observation ideas.',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'TOOLS',
     tb_capture:'Screen',tb_chart:'Chart Analysis',tb_quick:'Quick Analysis',tb_full:'Deep Analysis',tb_consensus:'AI Consensus',tb_monitor:'Live Monitor',
     btn_save:'Save',btn_fetch:'Fetch',btn_add:'+ Add',btn_update:'Refresh',btn_analyze:'Analyze',
     lbl_lang:'Language',lbl_free:'Free',lbl_ticker:'Enter ticker',lbl_history:'No history',lbl_symbol:'Change symbol',lbl_newchat:'New Chat',lbl_analyzing:'Analyzing...',lbl_briefing:'Good morning',
     pnl_market:'Market',pnl_portfolio:'Portfolio',pnl_history:'History',pnl_watchlist:'Watchlist',wlcApi:'Set API Key',wlcMarket:'Look Up Stock',wlcWatch:'Manage Watchlist',wlcQuick:'Quick Analysis',wlcQuickDesc:'Fast read on direction and risk during market hours.',wlcDeep:'Deep Analysis',wlcDeepDesc:'Multi-agent research on catalysts, risks, and observation conditions.',wlcLive:'Live Monitor',wlcLiveDesc:'Watch price, RSI, MACD, and abnormal moves.',wlcPort:'Portfolio Brief',wlcPortDesc:'Track holdings, watchlist, earnings, and risk temperature.',
-    entry_now:'Ready to enter',entry_wait:'Conditional',entry_avoid:'Avoid',dash_title:'Today\'s Overview',why_matters:'Why it matters to you',time_horizon:'Time Horizon',risk_level:'Risk Level',
+    entry_now:'Ready to enter',entry_wait:'Conditional',entry_avoid:'Avoid',dash_title:'What to Watch Today',why_matters:'Why it matters to you',time_horizon:'Time Horizon',risk_level:'Risk Level',
     bot_tab_dash:'Dashboard',bot_tab_hist:'Trade History',bot_tab_cfg:'Settings & Log',
     bot_start:'▶ Start Bot',bot_stop:'■ Stop',bot_running:'Bot Running',bot_no_pos:'No positions',bot_open_pos:'Open Positions',
     bot_chart_title:'Asset History',bot_no_data:'No data yet (recorded after bot runs)',
@@ -63,12 +63,12 @@ const L={
     bot_run_once:'⚡ Run Now',bot_running_cycle:'Running…',bot_max_concurrent:'🔒 Max Concurrent Positions',bot_slip:'📐 Limit Slippage (%)',
     nav_today:'Today',nav_research:'Research',nav_paper:'Sim',nav_bot:'Bot',nav_more:'More',
     coach_today_title:'📊 Today',coach_today_desc:'Start with tasks, risk, and the research queue.',coach_research_title:'Research',coach_research_desc:'Quick, deep, multi-model, earnings, and news live here.',coach_paper_title:'$ Sim',coach_paper_desc:'Practice trading discipline without connecting real-money accounts.',coach_bot_title:'🤖 Bot',coach_bot_desc:'The Paper account bot entry is in the top bar.'},
-  zh:{ph:'输入股票代码、图表问题或研究问题',li:'用中文回答。',reason:'分析理由',result:'分析结果',summary:'总结',conclusion:'结论',buy:'偏强 ▲',sell:'偏弱 ▼',hold:'中性 ◆',wait:'观察 ◇',wlcTitle:'AI 股票研究助手',wlc:'输入股票代码或连接 TradingView，快速看懂行情摘要、风险提示、催化因素和观察条件。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'工具',
+  zh:{ph:'输入股票代码、图表问题或研究问题',li:'用中文回答。',reason:'分析理由',result:'分析结果',summary:'总结',conclusion:'结论',buy:'偏强 ▲',sell:'偏弱 ▼',hold:'中性 ◆',wait:'观察 ◇',wlcTitle:'今天该看什么',wlc:'先看今日机会、今日风险、需要复盘、自选股异动和 AI 建议观察。',appTitle:'StockAI',appBadge:'AI RESEARCH',appSubtitle:'',navTools:'工具',
     tb_capture:'截屏',tb_chart:'图表分析',tb_quick:'快速分析',tb_full:'深度分析',tb_consensus:'多模型共识',tb_monitor:'实时监控',
     btn_save:'保存',btn_fetch:'获取',btn_add:'+ 添加',btn_update:'刷新',btn_analyze:'分析',
     lbl_lang:'语言',lbl_free:'免费',lbl_ticker:'输入代码',lbl_history:'无记录',lbl_symbol:'切换代码',lbl_newchat:'新对话',lbl_analyzing:'分析中...',lbl_briefing:'早上好',
     pnl_market:'市场',pnl_portfolio:'组合',pnl_history:'历史',pnl_watchlist:'自选股',wlcApi:'设置 API Key',wlcMarket:'查询股票',wlcWatch:'管理自选股',wlcQuick:'快速分析',wlcQuickDesc:'适合盘中快速判断方向和风险。',wlcDeep:'深度研究',wlcDeepDesc:'多代理整理催化因素、风险和观察条件。',wlcLive:'实时监控',wlcLiveDesc:'监听价格、RSI、MACD 和异常波动。',wlcPort:'组合概况',wlcPortDesc:'跟踪持仓、自选股、财报和风险温度。',
-    entry_now:'可立即入场',entry_wait:'条件等待',entry_avoid:'建议回避',dash_title:'今日概况',why_matters:'与你的关系',time_horizon:'时间维度',risk_level:'风险等级',
+    entry_now:'可立即入场',entry_wait:'条件等待',entry_avoid:'建议回避',dash_title:'今天该看什么',why_matters:'与你的关系',time_horizon:'时间维度',risk_level:'风险等级',
     bot_tab_dash:'仪表盘',bot_tab_hist:'交易记录',bot_tab_cfg:'设置·日志',
     bot_start:'▶ 启动机器人',bot_stop:'■ 停止',bot_running:'机器人运行中',bot_no_pos:'无持仓',bot_open_pos:'当前持仓',
     bot_chart_title:'资产走势',bot_no_data:'暂无数据（机器人运行后开始记录）',
@@ -277,15 +277,21 @@ function welcomeHTML(){
   const hidden=ls('sai_wlc_hidden')==='1';
   return '<div class="wlc" id="wlc">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">'+
-    '<h2 id="wlc-title" style="margin-bottom:0;flex:1">'+esc(t.wlcTitle)+'</h2>'+
+    '<h2 id="wlc-title" style="margin-bottom:0;flex:1">今天该看什么</h2>'+
     '<button onclick="togWlcCards()" title="カードを隠す/表示" style="background:none;border:none;color:var(--tx3);cursor:pointer;padding:5px;border-radius:7px;display:flex;align-items:center;transition:color .15s,background .15s" onmouseover="this.style.color=\'var(--tx)\'" onmouseout="this.style.color=\'var(--tx3)\'">'+ico('eye','sm')+'</button>'+
     '</div>'+
-    '<p id="wlc-desc">'+esc(t.wlc)+'</p>'+
+    '<p id="wlc-desc">普通人也能每天打开：先看今日机会、今日风险、需要复盘、自选股异动和 AI 建议观察，再决定要不要研究或模拟训练。</p>'+
+    '<div class="wlc-actions">'+
+    '<button class="wlc-action primary" onclick="togP(\'dashboard\');initDashboard()">打开今日首页</button>'+
+    '<button class="wlc-action" onclick="togP(\'watchlist\');buildResearchQueue()">研究队列</button>'+
+    '<button class="wlc-action" onclick="togP(\'paper\');loadVirtualWallet()">虚拟账户</button>'+
+    '<button class="wlc-action" onclick="togP(\'history\')">预测追踪</button>'+
+    '</div>'+
     '<div class="wcg" id="wlc-cards"'+(hidden?' style="display:none"':'')+'>'+
-    '<div class="wcc"><div class="wci">'+ico('zap')+'</div><div><div class="wct">'+esc(t.wlcQuick)+'</div><div class="wcd">'+esc(t.wlcQuickDesc)+'</div></div></div>'+
-    '<div class="wcc"><div class="wci">'+ico('layers')+'</div><div><div class="wct">'+esc(t.wlcDeep)+'</div><div class="wcd">'+esc(t.wlcDeepDesc)+'</div></div></div>'+
-    '<div class="wcc"><div class="wci">'+ico('radio')+'</div><div><div class="wct">'+esc(t.wlcLive)+'</div><div class="wcd">'+esc(t.wlcLiveDesc)+'</div></div></div>'+
-    '<div class="wcc"><div class="wci">'+ico('briefcase')+'</div><div><div class="wct">'+esc(t.wlcPort)+'</div><div class="wcd">'+esc(t.wlcPortDesc)+'</div></div></div>'+
+    '<div class="wcc" onclick="togP(\'dashboard\');initDashboard()" style="cursor:pointer"><div class="wci">📊</div><div><div class="wct">今日机会 / 今日风险</div><div class="wcd">首页直接告诉你今天先看哪里，不用猜按钮。</div></div></div>'+
+    '<div class="wcc" onclick="runLite()" style="cursor:pointer"><div class="wci">'+ico('zap')+'</div><div><div class="wct">概率 + 条件</div><div class="wcd">不说会涨会跌，而是显示概率、确认条件和失效条件。</div></div></div>'+
+    '<div class="wcc" onclick="togP(\'history\')" style="cursor:pointer"><div class="wci">'+ico('clock')+'</div><div><div class="wct">AI 预测追踪</div><div class="wcd">每次判断都会保存，之后看命中、失败、7日/30日胜率。</div></div></div>'+
+    '<div class="wcc" onclick="togP(\'paper\');loadVirtualWallet()" style="cursor:pointer"><div class="wci">$</div><div><div class="wct">模拟交易核心卖点</div><div class="wcd">AI 先用虚拟账户跑，用户能跟随、暂停、复盘，不碰真钱。</div></div></div>'+
     '</div>'+
     '</div>';
 }
@@ -667,7 +673,7 @@ async function refreshDashboard(){
   if(!virtualWallet)await loadVirtualWallet();
   if(!portfolio.length&&!watchlist.length){
     const vw=virtualWallet,ret=parseFloat(vw?.totalReturnPct||0);
-    body.innerHTML='<div class="dash-verdict"><div class="dash-verdict-lbl">AI 股票研究首页</div><div class="dash-verdict-txt">添加自选股后，这里会显示每日摘要、风险温度、财报提醒、异动股票和 AI 研究重点。你也可以先用虚拟训练中心做模拟交易。</div></div><div class="dash-grid"><div class="dash-card" onclick="togP(\'paper\')" style="cursor:pointer"><div class="dc-title">虚拟训练中心</div><div style="font-size:18px;font-weight:800;font-family:\'IBM Plex Mono\',monospace">$'+sf(vw?.totalEquity||100000,0)+'</div><div style="font-size:10px;color:'+(ret>=0?'var(--ac)':'var(--rd)')+';font-family:\'IBM Plex Mono\',monospace">'+(ret>=0?'+':'')+sf(ret,2)+'%</div></div><div class="dash-card"><div class="dc-title">下一步</div><div style="font-size:11px;color:var(--tx2)">添加自选股，或在虚拟训练中心买入一笔模拟仓位。</div></div></div>';return;}
+    body.innerHTML='<div class="focus-hero"><div class="focus-k">Daily cockpit</div><div class="focus-title">今天该看什么</div><div class="focus-sub">先加几只自选股，StockAI 会每天自动整理机会、风险、复盘和 AI 建议观察。</div></div><div class="focus-grid"><div class="focus-card opportunity" onclick="togP(\'watchlist\')"><div class="focus-head"><span class="focus-label">今日机会</span><span class="focus-badge">待添加</span></div><div class="focus-main">先添加自选股</div><div class="focus-desc">添加 TSLA、NVDA 等后，这里会显示值得优先看的股票。</div></div><div class="focus-card risk" onclick="togP(\'portfolio\')"><div class="focus-head"><span class="focus-label">今日风险</span><span class="focus-badge">LOW</span></div><div class="focus-main">当前风险很低</div><div class="focus-desc">没有持仓时，不会出现真实组合风险。</div></div><div class="focus-card review" onclick="togP(\'history\')"><div class="focus-head"><span class="focus-label">需要复盘</span><span class="focus-badge">0</span></div><div class="focus-main">暂无 AI 判断记录</div><div class="focus-desc">跑一次快速分析后，会自动进入预测追踪系统。</div></div><div class="focus-card aiwatch" onclick="togP(\'paper\')"><div class="focus-head"><span class="focus-label">模拟训练</span><span class="focus-badge">PAPER</span></div><div class="focus-main">虚拟账户 $'+sf(vw?.totalEquity||100000,0)+'</div><div class="focus-desc">AI 先用虚拟账户跑，不碰真钱。当前收益 '+(ret>=0?'+':'')+sf(ret,2)+'%。</div></div></div>';return;}
   body.innerHTML='<div style="text-align:center;color:var(--tx3);padding:12px;font-size:11px">データ取得中...</div>';
   const portSyms=portfolio.filter(p=>p.symbol).map(p=>p.symbol.toUpperCase());
   const wlSyms=watchlist.map(w=>w.symbol);
@@ -680,7 +686,7 @@ async function refreshDashboard(){
   const er=portSyms.length?await ipcRenderer.invoke('earnings-data',{symbols:portSyms.slice(0,10)}):{ok:false};
   const earningsMap={};if(er.ok)er.results.forEach(e=>{earningsMap[e.symbol]=e.earningsDate;});
   const hr=await ipcRenderer.invoke('check-signal-outcomes');
-  const signalStats=hr.ok?{d7:calcSignalStats(hr.history,'outcome7d'),d30:calcSignalStats(hr.history,'outcome30d')}:null;
+  const signalStats=hr.ok?{d7:calcSignalStats(hr.history,'outcome7d'),d30:calcSignalStats(hr.history,'outcome30d'),pending:(hr.history||[]).filter(h=>h.price&&!h.outcome7d).length,total:(hr.history||[]).length}:null;
   if(!virtualWallet)await loadVirtualWallet();
   dashData={priceMap,earningsMap,portSyms,wlSyms,signalStats,virtualWallet};
   renderDashboard(dashData);
@@ -695,6 +701,26 @@ function renderTodayTasks({riskLabel,riskScore,earningsSoon,movers,warns,signalS
   if(riskScore>=7)tasks.push({k:'组合',t:'今日风险温度偏高',d:'当前 '+riskLabel+'，优先看风险，不急着增加新仓位。',c:'var(--rd)'});
   if(!tasks.length)tasks.push({k:'开始',t:'生成今日研究队列',d:'到自选股里点“研究队列”，先确定今天最值得看的股票。',c:'var(--ac)'});
   return'<div class="task-board"><div class="task-head"><span>今日任务清单</span><button onclick="togP(\'watchlist\')">去自选</button></div>'+tasks.slice(0,5).map(x=>'<div class="task-row"><span class="task-key" style="color:'+x.c+';border-color:'+x.c+'">'+esc(x.k)+'</span><div><div class="task-title">'+esc(x.t)+'</div><div class="task-desc">'+esc(x.d)+'</div></div></div>').join('')+'</div>';
+}
+
+function renderTodayFocus({riskLabel,riskScore,earningsSoon,movers,warns,signalStats,priceMap,portSyms,wlSyms,virtualWallet:vw}){
+  const opp=movers.find(m=>m.change>0)||Object.entries(priceMap||{}).map(([symbol,d])=>({symbol,change:parseFloat(d.change)||0})).sort((a,b)=>b.change-a.change)[0];
+  const risk=warns[0]||earningsSoon[0]||(riskScore>=7?{symbol:'组合风险',days:0}:null);
+  const review=signalStats?.d7;
+  const mover=movers[0];
+  const wl=(wlSyms||[])[0]||watchlist[0]?.symbol||'添加自选股';
+  const ret=parseFloat(vw?.totalReturnPct||0);
+  const riskMain=risk?.symbol?esc(risk.symbol)+(risk.days!=null?' · '+(risk.days===0?'今天财报':risk.days+'天后财报'):' 需要检查'):(riskLabel==='LOW'?'暂无高风险':'组合风险 '+riskLabel);
+  const reviewMain=review?'7日胜率 '+review.winRate+'%':'等待 AI 判断结果';
+  const reviewDesc=review?'命中 '+review.wins+'/'+review.total+'，30日 '+(signalStats?.d30?.winRate??'待观察')+'%。':(signalStats?.pending?signalStats.pending+' 条判断还在观察中':'跑一次快速分析后自动保存。');
+  return'<div class="focus-hero"><div class="focus-k">Daily cockpit</div><div class="focus-title">今天该看什么</div><div class="focus-sub">先看机会、风险、复盘和异动，再决定要不要深入研究或用虚拟账户训练。</div></div>'+
+  '<div class="focus-grid">'+
+  '<div class="focus-card opportunity" onclick="togP(\'market\');'+(opp?.symbol?'loadMkt(\''+esc(opp.symbol)+'\')':'')+'"><div class="focus-head"><span class="focus-label">今日机会</span><span class="focus-badge">'+(opp?((opp.change>0?'+':'')+sf(opp.change,2)+'%'):'WAIT')+'</span></div><div class="focus-main">'+esc(opp?.symbol||wl)+'</div><div class="focus-desc">'+(opp?'自选/持仓里表现最强，先看是否有量价确认。':'还没有明显机会，先完善自选股。')+'</div></div>'+
+  '<div class="focus-card risk" onclick="togP(\'portfolio\')"><div class="focus-head"><span class="focus-label">今日风险</span><span class="focus-badge">'+esc(riskLabel)+'</span></div><div class="focus-main">'+riskMain+'</div><div class="focus-desc">风险温度 '+riskScore+'/10。高风险时先减噪音，不急着追新机会。</div></div>'+
+  '<div class="focus-card review" onclick="togP(\'history\')"><div class="focus-head"><span class="focus-label">需要复盘</span><span class="focus-badge">'+(signalStats?.pending||0)+' pending</span></div><div class="focus-main">'+esc(reviewMain)+'</div><div class="focus-desc">'+esc(reviewDesc)+'</div></div>'+
+  '<div class="focus-card mover" onclick="togP(\'watchlist\');buildResearchQueue()"><div class="focus-head"><span class="focus-label">自选股异动</span><span class="focus-badge">'+(mover?((mover.change>0?'+':'')+sf(mover.change,2)+'%'):'—')+'</span></div><div class="focus-main">'+esc(mover?.symbol||'暂无明显异动')+'</div><div class="focus-desc">'+(mover?'先解释为什么动，再判断是否值得继续观察。':'等行情更新后会自动显示。')+'</div></div>'+
+  '<div class="focus-card aiwatch" onclick="togP(\'paper\');loadVirtualWallet()"><div class="focus-head"><span class="focus-label">AI 建议观察 / 模拟训练</span><span class="focus-badge">PAPER</span></div><div class="focus-main">虚拟账户 $'+sf(vw?.totalEquity||100000,0)+' · '+(ret>=0?'+':'')+sf(ret,2)+'%</div><div class="focus-desc">AI 判断先进入预测追踪和虚拟账户，不碰真钱；用户可以跟随、暂停、复盘。</div></div>'+
+  '</div>';
 }
 
 function renderDashboard(data){
@@ -720,6 +746,7 @@ function renderDashboard(data){
   const warns=portWithP.filter(p=>{const cur=priceMap[p.symbol.toUpperCase()];return cur?.price&&(cur.price-parseFloat(p.avgCost))/parseFloat(p.avgCost)*100<-5;});
 
   let h='';
+  h+=renderTodayFocus({riskLabel,riskScore,earningsSoon,movers,warns,signalStats,priceMap,portSyms,wlSyms:data.wlSyms,virtualWallet:data.virtualWallet||virtualWallet});
   h+=renderTodayTasks({riskLabel,riskScore,earningsSoon,movers,warns,signalStats});
   // Risk + Earnings row
   h+='<div class="dash-grid">';
@@ -861,8 +888,10 @@ async function loadHistory(){
   const r=await ipcRenderer.invoke('check-signal-outcomes');
   if(!r.ok||!r.history?.length){list.innerHTML='<div style="text-align:center;color:var(--tx3);padding:8px;font-size:11px" id="hist-empty">'+L[lang].lbl_history+'</div>';return;}
   const stats=calcSignalStats(r.history,'outcome7d'),stats30=calcSignalStats(r.history,'outcome30d'),modelStats=calcModelStats(r.history,'outcome7d');
-  let html='';
-  if(stats){const sc=stats.winRate>=60?'var(--ac)':stats.winRate>=45?'var(--am)':'var(--rd)';html+='<div class="sig-stats"><span>AI 7日判断复盘</span><span style="color:'+sc+';font-weight:700">胜率 '+stats.winRate+'%</span><span style="color:var(--tx2)">'+stats.wins+'/'+stats.total+'件</span><span style="color:'+(parseFloat(stats.avg)>=0?'var(--ac)':'var(--rd)')+'">平均 '+(parseFloat(stats.avg)>=0?'+':'')+stats.avg+'%</span>'+(stats30?'<span style="color:var(--tx3)">30日 '+stats30.winRate+'% · '+stats30.wins+'/'+stats30.total+'</span>':'')+'</div>';}
+  const pending=r.history.filter(h=>h.price&&!h.outcome7d).length;
+  let html='<div class="focus-hero" style="margin-bottom:8px"><div class="focus-k">Prediction tracker</div><div class="focus-title">AI 预测追踪系统</div><div class="focus-sub">每次 AI 判断都会保存下来，之后自动检查：命中 / 失败 / 还在观察。这里不是聊天记录，是模型表现账本。</div></div>';
+  if(stats){const sc=stats.winRate>=60?'var(--ac)':stats.winRate>=45?'var(--am)':'var(--rd)';html+='<div class="sig-stats"><span>7日胜率</span><span style="color:'+sc+';font-weight:700">'+stats.winRate+'%</span><span style="color:var(--tx2)">'+stats.wins+'/'+stats.total+'件</span><span style="color:'+(parseFloat(stats.avg)>=0?'var(--ac)':'var(--rd)')+'">平均 '+(parseFloat(stats.avg)>=0?'+':'')+stats.avg+'%</span>'+(stats30?'<span style="color:var(--tx3)">30日 '+stats30.winRate+'% · '+stats30.wins+'/'+stats30.total+'</span>':'')+'<span style="color:var(--tx3)">观察中 '+pending+'</span></div>';}
+  else html+='<div class="sig-stats"><span>观察中</span><span style="color:var(--am);font-weight:800">'+pending+'</span><span style="color:var(--tx3)">7日后会自动判断命中/失败</span></div>';
   if(modelStats.length){
     html+='<div class="sig-stats" style="display:block"><div style="font-weight:800;margin-bottom:6px;color:var(--tx)">模型表现排行榜</div>'+modelStats.map((m,i)=>{const c=m.winRate>=60?'var(--ac)':m.winRate>=45?'var(--am)':'var(--rd)';return'<div style="display:flex;align-items:center;gap:7px;margin:4px 0"><span style="width:18px;color:var(--tx3);font-family:IBM Plex Mono,monospace">#'+(i+1)+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(m.provider)+' · '+esc(m.model)+'</span><span style="color:'+c+';font-weight:800">'+m.winRate+'%</span><span style="color:var(--tx3);font-size:10px">'+m.wins+'/'+m.total+'</span><span style="color:'+(parseFloat(m.avg)>=0?'var(--ac)':'var(--rd)')+';font-size:10px">'+(parseFloat(m.avg)>=0?'+':'')+m.avg+'%</span></div>';}).join('')+'</div>';
   }
@@ -872,11 +901,14 @@ async function loadHistory(){
     let outHtml='';
     if(h.outcome7d){const c=h.outcome7d.change;const hit=bull?c>0:bear?c<0:Math.abs(c)<3;outHtml='<span class="out-badge '+(hit?'out-hit':'out-miss')+'">'+(hit?'✓':'✗')+' '+(c>=0?'+':'')+c+'%</span>';}
     else if(h.price){const age=(Date.now()-h.timestamp)/86400000;outHtml='<span class="out-badge out-pend">'+(age<7?Math.ceil(7-age)+'日後':'確認中')+'</span>';}
-    return'<div class="hist-item"><span class="hist-sym">'+esc(h.symbol)+'</span><span class="sig '+sc+'" style="font-size:9px;padding:2px 6px">'+(h.signal||'—')+'</span>'+(h.price?'<span style="font-size:10px;color:var(--tx2)">$'+sf(h.price)+'</span>':'')+outHtml+'<span class="hist-date">'+new Date(h.timestamp).toLocaleDateString()+'</span></div>';
+    const cond=h.probability?'<div style="font-size:10px;color:var(--tx3);margin-top:3px;line-height:1.35">概率 '+esc(String(h.probability))+'% · 关键条件：'+esc(h.keyCondition||'等待确认')+' · 失效：'+esc(h.invalidationCondition||'风险恶化')+'</div>':'';
+    return'<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:7px;margin-bottom:4px;padding:7px 10px"><div class="hist-item" style="padding:0;background:transparent;margin:0"><span class="hist-sym">'+esc(h.symbol)+'</span><span class="sig '+sc+'" style="font-size:9px;padding:2px 6px">'+(h.signal||'—')+'</span>'+(h.price?'<span style="font-size:10px;color:var(--tx2)">$'+sf(h.price)+'</span>':'')+outHtml+'<span class="hist-date">'+new Date(h.timestamp).toLocaleDateString()+'</span></div>'+cond+'</div>';
   }).join('');
   list.innerHTML=html;
 }
-async function saveHistory(symbol,signal,score,summary,price){await ipcRenderer.invoke('save-history',{entry:{symbol,signal,score,summary:summary?.slice(0,200),price:price||null,provider:activeProvider(),model:activeModel()}});}
+async function saveHistory(symbol,signal,score,summary,price,meta){
+  await ipcRenderer.invoke('save-history',{entry:{symbol,signal,score,summary:summary?.slice(0,200),price:price||null,provider:activeProvider(),model:activeModel(),probability:meta?.prob||null,probabilityLabel:meta?.label||null,keyCondition:meta?.key||'',invalidationCondition:meta?.invalid||''}});
+}
 
 
 // ═══ Market Data ═══
@@ -922,7 +954,7 @@ async function runLite(userInstr){
   const r=await ipcRenderer.invoke('run-lite',{keys:keysPayload(),symbol:sym,marketData:mktData,tvState:tvData,screenshot:img,lang,userInstruction:userInstr,portfolio:portfolio.filter(p=>p.symbol)});
   thk.remove();Q('agbar').style.display='none';
   if(r.error&&!r.partialResults){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);}
-  else{const res=r.results||r.partialResults||{};lastHF=res;let h='';if(img)h+=scrTag(img);h+=buildRpt(res,sym,'lite');addMsg('ai',h,1);const e=res.E||{};saveHistory(sym,e.finalVerdict||'HOLD',e.score||5,e.summary||'',mktData?.price);}
+  else{const res=r.results||r.partialResults||{};lastHF=res;let h='';if(img)h+=scrTag(img);h+=buildRpt(res,sym,'lite');addMsg('ai',h,1);const e=res.E||{};saveHistory(sym,e.finalVerdict||'HOLD',e.score||5,e.summary||'',mktData?.price,predictionMetaFromAgent(e,res.B||{},res.D||{}));}
   endB();
 }
 
@@ -938,8 +970,45 @@ async function runHF(userInstr){
   const r=await ipcRenderer.invoke('run-agents',{keys:keysPayload(),symbol:sym,marketData:mktData,tvState:tvData,screenshot:img,lang,userInstruction:userInstr,portfolio:portfolio.filter(p=>p.symbol)});
   thk.remove();Q('agbar').style.display='none';
   if(r.error&&!r.partialResults){addMsg('ai','<div class="errc">'+esc(r.error)+'</div>',1);}
-  else{const res=r.results||r.partialResults||{};lastHF=res;let h='';if(img)h+=scrTag(img);h+=buildRpt(res,sym,'full');addMsg('ai',h,1);const e=res.E||{};saveHistory(sym,e.finalVerdict||'HOLD',e.score||5,e.summary||'',mktData?.price);}
+  else{const res=r.results||r.partialResults||{};lastHF=res;let h='';if(img)h+=scrTag(img);h+=buildRpt(res,sym,'full');addMsg('ai',h,1);const e=res.E||{};saveHistory(sym,e.finalVerdict||'HOLD',e.score||5,e.summary||'',mktData?.price,predictionMetaFromAgent(e,res.B||{},res.D||{}));}
   endB();
+}
+
+// ═══ Probability + Condition Helpers ═══
+function verdictDirection(v){
+  const s=(v||'').toUpperCase();
+  if(s.includes('BUY')||s.includes('BULL'))return{label:'上涨概率',color:'var(--ac)',dir:'up'};
+  if(s.includes('SELL')||s.includes('BEAR'))return{label:'下跌概率',color:'var(--rd)',dir:'down'};
+  return{label:'震荡概率',color:'var(--am)',dir:'flat'};
+}
+function normalizeProb(conf,score){
+  const c=parseFloat(conf);
+  if(Number.isFinite(c))return Math.max(35,Math.min(85,Math.round(c>10?c:c*10)));
+  const s=parseFloat(score);
+  if(Number.isFinite(s))return Math.max(40,Math.min(78,Math.round(42+s*4.2)));
+  return 55;
+}
+function pickFirst(...vals){return vals.find(v=>v!=null&&String(v).trim())||'';}
+function predictionMetaFromAgent(e={},b={},d={}){
+  const dir=verdictDirection(e.finalVerdict||e.signal);
+  const prob=normalizeProb(e.probability??e.confidence,e.score);
+  const key=pickFirst(e.keyCondition,e.entryCondition,b.entry?('突破/站稳 '+b.entry+' 才确认'):null,e.actionPlan,'等待价格和成交量同时确认');
+  const invalid=pickFirst(e.invalidationCondition,e.riskWarning,d.stopLevel?('跌破 '+d.stopLevel+' 则取消判断'):null,b.stopLoss?('跌破 '+b.stopLoss+' 则取消判断'):null,'如果价格跌破关键支撑或风险事件恶化，取消判断');
+  return{label:dir.label,prob,color:dir.color,key,invalid,why:e.whyMattersToUser||''};
+}
+function predictionMetaFromText(raw,sig,score,entry,target,stop){
+  const dir=verdictDirection(sig);
+  const probMatch=raw.match(/(?:上涨概率|下跌概率|震荡概率|概率|confidence|置信度)[：:\s]*(\d{1,3})\s*%?/i);
+  const prob=probMatch?Math.max(35,Math.min(85,parseInt(probMatch[1],10))):normalizeProb(null,score);
+  const keyMatch=raw.match(/(?:关键条件|确认条件|入场条件|entry condition|entry)[：:\s]*([^\n。]+)/i);
+  const invalidMatch=raw.match(/(?:失效条件|无效条件|取消判断|invalidation|risk warning|stop)[：:\s]*([^\n。]+)/i);
+  const key=pickFirst(keyMatch?.[1],entry?(dir.dir==='down'?'跌破 '+entry+' 才确认':'突破/站稳 '+entry+' 才确认'):null,target?'接近 '+target+' 时重新评估':'等待价格与成交量确认');
+  const invalid=pickFirst(invalidMatch?.[1],stop?(dir.dir==='down'?'突破 '+stop+' 取消判断':'跌破 '+stop+' 取消判断'):null,'跌破关键支撑或消息面恶化时取消判断');
+  return{label:dir.label,prob,color:dir.color,key,invalid};
+}
+function renderProbabilityBox(meta){
+  if(!meta)return'';
+  return'<div class="prob-box"><div class="prob-main"><div class="prob-label">'+esc(meta.label||'概率')+'</div><div class="prob-num" style="color:'+meta.color+'">'+esc(String(meta.prob||55))+'%</div></div><div class="prob-lines"><div class="prob-line"><b>关键条件：</b>'+esc(meta.key||'等待确认')+'</div><div class="prob-line"><b>失效条件：</b>'+esc(meta.invalid||'风险恶化则取消判断')+'</div>'+(meta.why?'<div class="prob-line"><b>为什么重要：</b>'+esc(meta.why)+'</div>':'')+'</div></div>';
 }
 
 // ═══ Conclusion-First Report ═══
@@ -953,6 +1022,7 @@ function buildRpt(res,sym,mode){
 
   // HERO: Conclusion first with entry condition
   h+='<div class="rpt-hero"><div class="rpt-hero-verdict" style="color:'+((v.includes('BUY')||v.includes('BULLISH'))?'var(--ac)':(v.includes('SELL')||v.includes('BEARISH'))?'var(--rd)':'var(--am)')+'">'+(e.summary?esc(e.summary).slice(0,150)+'...':sigT)+'</div>';
+  h+=renderProbabilityBox(predictionMetaFromAgent(e,res.B||{},res.D||{}));
   if(e.entryCondition)h+='<div class="rpt-hero-entry"><strong>📍 '+L[lang].entry_wait+':</strong> '+esc(e.entryCondition)+'</div>';
   if(e.avoidEvents?.length)h+='<div class="rpt-hero-avoid">🚫 '+esc(e.avoidEvents.join(' · '))+'</div>';
   // Time horizon + risk level badges
@@ -1044,7 +1114,7 @@ async function doSend(){if(busy)return;const inp=Q('inp');const text=inp.value.t
   if(wTV)await tvRef();let img=null;if(wScr){const r=await ipcRenderer.invoke('capture',{quality:75});if(r.ok)img=r.img;}
   const isPine=pineMode||/pine|script|指標|インジケーター|戦略|strategy|indicator/i.test(text);const sym=tvData?.sym||mktData?.sym||'';const li=L[lang].li;let ctx='';if(wMkt&&mktData)ctx+='\n['+mktData.sym+'] $'+sf(mktData.price)+' '+sf(mktData.change,2)+'% RSI:'+(mktData.tech?.rsi||'')+' MACD:'+(mktData.tech?.macd||'')+' Trend:'+(mktData.tech?.trend||'')+' F&G:'+(mktData.fearGreed?.score||'')+' VIX:'+sf(mktData.vix,1);if(wTV&&tvData)ctx+='\n[TV] '+(tvData.sym||'')+' '+(tvData.price||'')+' TF:'+(tvData.tf||'');
   const portCtx=portfolio.filter(p=>p.symbol).length?'\n[保有] '+portfolio.filter(p=>p.symbol).map(p=>p.symbol+' '+p.shares+'株@$'+p.avgCost).join(', '):'';
-  const sys=isPine?'Expert Pine Script v5. '+li+' Write ```pinescript```':'あなたは20年以上の経験を持つエリートアナリストです。'+li+'\n'+ctx+portCtx+'\n\n【ルール】具体的数値必須。テクニカル・ファンダ・マクロ詳細分析。\n## '+L[lang].reason+'\n## '+L[lang].result+'\n## '+L[lang].summary+'\nRating: X/10 | Entry: $X | Target: $X (+X%) | Stop: $X (-X%)\n## '+L[lang].conclusion+'\n質問に対する明確な回答と判断理由を簡潔に。';
+  const sys=isPine?'Expert Pine Script v5. '+li+' Write ```pinescript```':'あなたは20年以上の経験を持つエリートアナリストです。'+li+'\n'+ctx+portCtx+'\n\n【ルール】具体的数値必須。テクニカル・ファンダ・マクロ詳細分析。ただし「必ず上がる/下がる」と断定しない。\n## '+L[lang].reason+'\n## '+L[lang].result+'\n## '+L[lang].summary+'\nRating: X/10 | 上涨概率/下跌概率: X% | Entry: $X | Target: $X (+X%) | Stop: $X (-X%)\n关键条件: 突破/反発/出来高など、判断が確認される条件\n失效条件: 跌破/決算悪化/出来高失速など、判断を取り消す条件\n## '+L[lang].conclusion+'\n質問に対する明確な回答と判断理由を簡潔に。';
   const content=[];if(img)content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:img}});content.push({type:'text',text:text});
   const thk=showThk(L[lang].lbl_analyzing);
   // Use context-aware AI if smart monitor has live data
@@ -1060,7 +1130,7 @@ function endB(){busy=false;Q('sndb').disabled=false;Q('stpb').style.display='non
 function doStop(){endB();document.querySelectorAll('.thk-row').forEach(e=>e.remove());}
 function scrTag(img){return'<div class="scr"><img src="data:image/jpeg;base64,'+img+'"/><div class="scrb"><span>📸</span><span>'+new Date().toLocaleTimeString()+'</span></div></div>';}
 
-function buildCard(raw,sym){const t=raw.toUpperCase();const sig=t.includes('BUY')||t.includes('買')?'BUY':t.includes('SELL')||t.includes('売')?'SELL':'HOLD';const sigC=sig==='BUY'?'sb':sig==='SELL'?'ss':'sh';const sm=raw.match(/(\d+(?:\.\d+)?)\/10/);const score=sm?parseFloat(sm[1]):5;const entry=(raw.match(/Entry[：:\s]*\$?([\d,.]+)/i)||[])[1];const target=(raw.match(/Target[：:\s]*\$?([\d,.]+)/i)||[])[1];const stop=(raw.match(/Stop[：:\s]*\$?([\d,.]+)/i)||[])[1];const sec=splitSec(raw);let h='<div class="rpt"><div class="rpth"><span class="rptt">📊 '+(sym||'')+'</span><div class="rptm"><span class="rpts">'+s2s(Math.round(score/2))+'</span><span class="sig '+sigC+'">'+(L[lang][sig.toLowerCase()]||sig)+' '+score+'/10</span></div></div>';if(sec.conclusion)h+='<div class="rpt-hero" style="border-left:3px solid var(--ac)"><div class="rpt-hero-verdict" style="color:var(--ac)">🎯 '+md(sec.conclusion)+'</div></div>';if(sec.reason)h+='<div class="asec collapsed"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb ba">📋</span><span class="asecr">'+L[lang].reason+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sec.reason)+'</div></div>';if(sec.result)h+='<div class="asec collapsed"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb bb">📊</span><span class="asecr">'+L[lang].result+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sec.result)+'</div></div>';const sb=sec.summary||((!sec.reason&&!sec.result&&!sec.conclusion)?raw:'');if(sb)h+='<div class="asec"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb be">⭐</span><span class="asecr">'+L[lang].summary+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sb)+((entry||target||stop)?'<div class="ptgs">'+(entry?'<span class="ptg pte">Entry $'+entry+'</span>':'')+(target?'<span class="ptg ptt">Target $'+target+'</span>':'')+(stop?'<span class="ptg ptst">Stop $'+stop+'</span>':'')+'</div>':'')+'</div></div>';h+=disclaimerHTML(sym)+'</div>';return h;}
+function buildCard(raw,sym){const t=raw.toUpperCase();const sig=t.includes('BUY')||t.includes('買')?'BUY':t.includes('SELL')||t.includes('売')?'SELL':'HOLD';const sigC=sig==='BUY'?'sb':sig==='SELL'?'ss':'sh';const sm=raw.match(/(\d+(?:\.\d+)?)\/10/);const score=sm?parseFloat(sm[1]):5;const entry=(raw.match(/Entry[：:\s]*\$?([\d,.]+)/i)||[])[1];const target=(raw.match(/Target[：:\s]*\$?([\d,.]+)/i)||[])[1];const stop=(raw.match(/Stop[：:\s]*\$?([\d,.]+)/i)||[])[1];const sec=splitSec(raw);const meta=predictionMetaFromText(raw,sig,score,entry,target,stop);let h='<div class="rpt"><div class="rpth"><span class="rptt">📊 '+(sym||'')+'</span><div class="rptm"><span class="rpts">'+s2s(Math.round(score/2))+'</span><span class="sig '+sigC+'">'+(L[lang][sig.toLowerCase()]||sig)+' '+score+'/10</span></div></div>';if(sec.conclusion)h+='<div class="rpt-hero" style="border-left:3px solid var(--ac)"><div class="rpt-hero-verdict" style="color:var(--ac)">🎯 '+md(sec.conclusion)+'</div>'+renderProbabilityBox(meta)+'</div>';else h+='<div class="rpt-hero">'+renderProbabilityBox(meta)+'</div>';if(sec.reason)h+='<div class="asec collapsed"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb ba">📋</span><span class="asecr">'+L[lang].reason+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sec.reason)+'</div></div>';if(sec.result)h+='<div class="asec collapsed"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb bb">📊</span><span class="asecr">'+L[lang].result+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sec.result)+'</div></div>';const sb=sec.summary||((!sec.reason&&!sec.result&&!sec.conclusion)?raw:'');if(sb)h+='<div class="asec"><div class="asech" onclick="this.parentElement.classList.toggle(\'collapsed\')"><span class="asecb be">⭐</span><span class="asecr">'+L[lang].summary+'</span><span class="asecar">▼</span></div><div class="asecbd prose">'+md(sb)+((entry||target||stop)?'<div class="ptgs">'+(entry?'<span class="ptg pte">Entry $'+entry+'</span>':'')+(target?'<span class="ptg ptt">Target $'+target+'</span>':'')+(stop?'<span class="ptg ptst">Stop $'+stop+'</span>':'')+'</div>':'')+'</div></div>';h+=disclaimerHTML(sym)+'</div>';saveHistory(sym||'UNKNOWN',sig,score,(sec.conclusion||sec.summary||raw).replace(/<[^>]+>/g,'').slice(0,180),mktData?.price,meta);return h;}
 function splitSec(t){const o={};const a=t.match(/^##\s+(?:📋\s*)?(?:分析理由|Reasoning|理由)[^\n]*\n([\s\S]*?)(?=^##\s|$)/im);if(a)o.reason=a[1].trim();const b=t.match(/^##\s+(?:📊\s*)?(?:分析結果|分析结果|Analysis)[^\n]*\n([\s\S]*?)(?=^##\s|$)/im);if(b)o.result=b[1].trim();const c=t.match(/^##\s+(?:⭐\s*)?(?:まとめ|总结|Summary)[^\n]*\n([\s\S]*?)(?=^##\s|$)/im);if(c)o.summary=c[1].trim();const d=t.match(/^##\s+(?:🎯\s*)?(?:結論|结论|Conclusion)[^\n]*\n([\s\S]*?)(?=^##\s|$)/im);if(d)o.conclusion=d[1].trim();return o;}
 function s2s(n){return'⭐'.repeat(Math.max(0,Math.min(5,n||0)))+'☆'.repeat(5-Math.max(0,Math.min(5,n||0)));}
 function buildPine(code){const id='p'+Date.now();return'<div class="pnc"><div class="pnh"><span class="pnt">🟣 Pine Script v5</span><span class="pnl2">'+code.split('\n').length+' lines</span></div><div class="pncd" id="'+id+'">'+esc(code)+'</div><div class="pnf"><button class="pnbn pnj" onclick="doPine('+JSON.stringify(code)+')">▶ INJECT</button><button class="pnbn pncp" onclick="cpCode(\''+id+'\')">📋 COPY</button></div></div>';}
