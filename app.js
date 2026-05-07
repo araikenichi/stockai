@@ -123,7 +123,7 @@ function bindReliableControls(){
     el.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();fn(e);});
   };
   Q('lang-sel')?.addEventListener('change',e=>setLang(e.target.value));
-  on('tb-bot',()=>{togP('bot');initBotPanel();});
+  on('tb-bot',()=>{openP('bot');initBotPanel();});
   on('auto-btn',()=>togAuto());
   on('thb',()=>togTheme());
   on('tb-capture',()=>doCapture());
@@ -471,6 +471,17 @@ function togP(name){
   Q('app').classList.toggle('panel-open',anyOpen);
   setActiveTopNav(anyOpen&&t.classList.contains('open')?name:'');
   if(name==='tv'&&t.classList.contains('open'))tvConn();
+  if(name==='history')loadHistory();
+  if(name==='paper')loadVirtualWallet();
+}
+function openP(name){
+  ALL_PANELS.forEach(n=>{
+    const p=Q('pnl-'+n);
+    if(p)p.classList.toggle('open',n===name);
+  });
+  Q('app').classList.add('panel-open');
+  setActiveTopNav(name);
+  if(name==='tv')tvConn();
   if(name==='history')loadHistory();
   if(name==='paper')loadVirtualWallet();
 }
