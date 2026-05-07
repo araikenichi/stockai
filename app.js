@@ -4,7 +4,7 @@ var stockai=window.stockai||{
   on:()=>()=>{}
 };
 const ipcRenderer=stockai;
-window.__stockaiRuntime={electron:isElectron,loadedAt:new Date().toISOString(),version:'2.0.11'};
+window.__stockaiRuntime={electron:isElectron,loadedAt:new Date().toISOString(),version:'2.0.12'};
 window.addEventListener('error',e=>console.error('[StockAI renderer error]',e.message,e.filename,e.lineno,e.colno));
 window.addEventListener('unhandledrejection',e=>console.error('[StockAI promise error]',e.reason?.stack||e.reason?.message||e.reason));
 let key='',lang='zh',model='gemini-2.5-flash',keyClaude='',keyOpenAI='',keyDeepSeek='';
